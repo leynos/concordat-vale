@@ -1,20 +1,22 @@
 # Packaging a Vale style as a ZIP (with Tengo scripts & vocabulary)
 
-This guide shows how to ship a Vale v3 style as a single distributable ZIP that includes:
+This guide shows how to ship a Vale v3 style as a single distributable ZIP that
+includes:
 
-* one or more styles (YAML rules);
-* Tengo scripts for custom rules and/or fix-suggestion actions;
-* vocabulary lists (accept/reject) and optional Hunspell dictionaries.
+- one or more styles (YAML rules);
+- Tengo scripts for custom rules and/or fix-suggestion actions;
+- vocabulary lists (accept/reject) and optional Hunspell dictionaries.
 
-It also covers how a consumer references the package via `Packages` + `vale sync`.
+It also covers how a consumer references the package via `Packages` +
+`vale sync`.
 
----
+______________________________________________________________________
 
 ## 1) Repository layout (before zipping)
 
 Structure your style repository like this:
 
-```
+```text
 .
 ├─ .vale.ini                  # “complete package” config (points at styles/)
 └─ styles/
@@ -35,15 +37,17 @@ Structure your style repository like this:
          └─ en_GB.aff
 ```
 
-**Why these paths?**
-Vale resolves non-style resources under `styles/config/*`:
+**Why these paths?** Vale resolves non-style resources under `styles/config/*`:
 
-* **`config/scripts/`** is the search root for `script:` in `extends: script` rules.
-* **`config/actions/`** is the search root for Tengo scripts used by `action: { name: suggest }` fixers.
-* **`config/vocabularies/<name>/accept.txt|reject.txt`** ships organisation vocab.
-* **`config/dictionaries/`** ships Hunspell files for spelling rules (optional).
+- **`config/scripts/`** is the search root for `script:` in `extends: script`
+  rules.
+- **`config/actions/`** is the search root for Tengo scripts used by
+  `action: { name: suggest }` fixers.
+- **`config/vocabularies/<name>/accept.txt|reject.txt`** ships organisation
+  vocab.
+- **`config/dictionaries/`** ships Hunspell files for spelling rules (optional).
 
----
+______________________________________________________________________
 
 ## 2) Minimal rule wiring
 
@@ -81,31 +85,36 @@ action:
 
 Place `CamelToSnake.tengo` in `styles/config/actions/`.
 
-> Tip: keep actions small and pure; return a single best suggestion or a short list.
+> Tip: keep actions small and pure; return a single best suggestion or a short
+> list.
 
----
+______________________________________________________________________
 
 ## 3) Vocabulary files (accept/reject)
 
 Ship a vocabulary named `myvocab`:
 
-```
+```text
 styles/config/vocabularies/myvocab/accept.txt
 styles/config/vocabularies/myvocab/reject.txt
 ```
 
-* **`accept.txt`**: words/terms to *allow* (prevent false positives).
-* **`reject.txt`**: words/terms to *discourage* (raise alerts if seen).
+- **`accept.txt`**: words/terms to *allow* (prevent false positives).
+- **`reject.txt`**: words/terms to *discourage* (raise alerts if seen).
 
-Lines are one token per line; keep them canonical (e.g., “microservice”, “WebSocket”), and prefer the singular base form unless you need inflected variants.
+Lines are one token per line; keep them canonical (e.g., “microservice”,
+“WebSocket”), and prefer the singular base form unless you need inflected
+variants.
 
-To use this vocab in the package’s own config (see §4), set `Vocab = myvocab`. Consumers can keep that or override with their own.
+To use this vocab in the package’s own config (see §4), set `Vocab = myvocab`.
+Consumers can keep that or override with their own.
 
----
+______________________________________________________________________
 
 ## 4) The package’s `.vale.ini`
 
-Include a minimal config at the root of the ZIP that points at `styles/` and enables your style (and vocab):
+Include a minimal config at the root of the ZIP that points at `styles/` and
+enables your style (and vocab):
 
 ```ini
 # .vale.ini (inside the ZIP)
@@ -116,9 +125,10 @@ BasedOnStyles = MyStyle
 Vocab = myvocab
 ```
 
-This makes the ZIP a **complete package**: when a consumer syncs it, Vale knows where to load everything.
+This makes the ZIP a **complete package**: when a consumer syncs it, Vale knows
+where to load everything.
 
----
+______________________________________________________________________
 
 ## 5) Build the ZIP
 
@@ -128,17 +138,19 @@ From the repo root:
 zip -r MyStyle-1.2.3.zip .vale.ini styles/
 ```
 
-Attach `MyStyle-1.2.3.zip` to a GitHub Release (or host it anywhere with a stable URL).
+Attach `MyStyle-1.2.3.zip` to a GitHub Release (or host it anywhere with a
+stable URL).
 
-Version your ZIPs (e.g., SemVer) so consumers can pin or upgrade deterministically.
+Version your ZIPs (e.g., SemVer) so consumers can pin or upgrade
+deterministically.
 
----
+______________________________________________________________________
 
 ## 6) How consumers install and use it
 
 In the **consuming** repository:
 
-**.vale.ini**
+### .vale.ini
 
 ```ini
 # Consumer project
@@ -162,18 +174,21 @@ vale .      # lint the repo
 
 Notes:
 
-* If multiple packages are listed, later entries take precedence when files collide.
-* Consumers can override anything in your package by adding files under their local `StylesPath`.
+- If multiple packages are listed, later entries take precedence when files
+  collide.
+- Consumers can override anything in your package by adding files under their
+  local `StylesPath`.
 
----
+______________________________________________________________________
 
 ## 7) Sanity checks
 
 After `vale sync`, confirm the resources are visible:
 
-* Your rules appear under the configured style name (`MyStyle`).
-* A rule that references `MyScript.tengo` triggers as expected on sample text.
-* A token in `reject.txt` raises an alert; a token in `accept.txt` is ignored by your spelling/term rules.
+- Your rules appear under the configured style name (`MyStyle`).
+- A rule that references `MyScript.tengo` triggers as expected on sample text.
+- A token in `reject.txt` raises an alert; a token in `accept.txt` is ignored
+  by your spelling/term rules.
 
 A quick project-local smoke test:
 
@@ -183,25 +198,28 @@ printf 'THISNeedsFixing\n' | vale --ext=.txt -
 
 Expect your `CamelToSnake.yml` message and a suggested fix.
 
----
+______________________________________________________________________
 
 ## 8) Private distribution & alternatives (optional)
 
-* **Vendoring via Git**: instead of `Packages`, consumers can vendor your repo (or a release) into their tree (e.g., as a submodule) and set `StylesPath` accordingly. This avoids external fetches but shifts updates to Git ops.
-* **Multiple styles per ZIP**: you can ship several style folders under `styles/` and reference them all from `.vale.ini`.
+- **Vendoring via Git**: instead of `Packages`, consumers can vendor your repo
+  (or a release) into their tree (e.g., as a submodule) and set `StylesPath`
+  accordingly. This avoids external fetches but shifts updates to Git ops.
+- **Multiple styles per ZIP**: you can ship several style folders under
+  `styles/` and reference them all from `.vale.ini`.
 
----
+______________________________________________________________________
 
 ## 9) Release checklist
 
-* [ ] All rule YAML under `styles/MyStyle/…`
-* [ ] All `extends: script` Tengo in `styles/config/scripts/`
-* [ ] All suggestion/fixer Tengo in `styles/config/actions/`
-* [ ] Vocab in `styles/config/vocabularies/<name>/(accept|reject).txt`
-* [ ] Optional Hunspell in `styles/config/dictionaries/`
-* [ ] Root `.vale.ini` points `StylesPath = styles` and enables your style/vocab
-* [ ] Versioned ZIP built from `.vale.ini` + `styles/`
-* [ ] Release asset URL stable and documented for consumers
+- [ ] All rule YAML under `styles/MyStyle/…`
+- [ ] All `extends: script` Tengo in `styles/config/scripts/`
+- [ ] All suggestion/fixer Tengo in `styles/config/actions/`
+- [ ] Vocab in `styles/config/vocabularies/<name>/(accept|reject).txt`
+- [ ] Optional Hunspell in `styles/config/dictionaries/`
+- [ ] Root `.vale.ini` points `StylesPath = styles` and enables your style/vocab
+- [ ] Versioned ZIP built from `.vale.ini` + `styles/`
+- [ ] Release asset URL stable and documented for consumers
 
-Ship it; consumers `vale sync` it; everyone gets the same rules, scripts, and vocabulary, versioned and reproducible.
-
+Ship it; consumers `vale sync` it; everyone gets the same rules, scripts, and
+vocabulary, versioned and reproducible.
