@@ -122,8 +122,9 @@ class ValeDiagnostic(msgspec.Struct, kw_only=True):
         Human-readable explanation attached to the alert.
     severity : str
         Vale's severity level such as ``warning`` or ``error``.
-    line : int
-        One-based line number where the alert originated.
+    line : int | None, optional
+        One-based line number where the alert originated, or ``None`` when
+        Vale omits location metadata.
     span : tuple[int, int], optional
         Start/end offsets for the match within the line. Defaults to ``(0, 0)``
         when Vale omits span data.
@@ -140,7 +141,7 @@ class ValeDiagnostic(msgspec.Struct, kw_only=True):
     check: str = msgspec.field(name="Check")
     message: str = msgspec.field(name="Message")
     severity: str = msgspec.field(name="Severity")
-    line: int = msgspec.field(name="Line")
+    line: int | None = msgspec.field(default=None, name="Line")
     span: tuple[int, int] = msgspec.field(default=(0, 0), name="Span")
     link: str | None = msgspec.field(default=None, name="Link")
     description: str | None = msgspec.field(default=None, name="Description")
