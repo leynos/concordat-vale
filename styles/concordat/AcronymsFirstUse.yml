@@ -1,0 +1,9 @@
+extends: script
+message: "Expand uncommon acronyms on first use (e.g., 'Continuous Integration (CI)'). Found '%s' with no prior expansion."
+link: "House style: expand acronyms on first use."
+level: warning
+
+scope:
+  - raw
+
+script: AcronymsFirstUse.tengo

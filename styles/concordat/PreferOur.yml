@@ -1,0 +1,67 @@
+extends: substitution
+message: "Use British '-our' spelling: '%[2]s' → '%[1]s'."
+link: "House style: -our in colour, behaviour, neighbour."
+level: error
+ignorecase: true
+nonword: true
+swap:
+  color: colour
+  colors: colours
+  colored: coloured
+  coloring: colouring
+  colorful: colourful
+  colorless: colourless
+  behavior: behaviour
+  behaviors: behaviours
+  behavioral: behavioural
+  behaviorally: behaviourally
+  neighbor: neighbour
+  neighbors: neighbours
+  neighborhood: neighbourhood
+  neighboring: neighbouring
+  neighborly: neighbourly
+  flavor: flavour
+  flavors: flavours
+  flavored: flavoured
+  flavorful: flavourful
+  odor: odour
+  odors: odours
+  odored: odoured
+  odoring: odouring
+  savor: savour
+  savored: savoured
+  savoring: savouring
+  savory: savoury
+  honor: honour
+  honors: honours
+  honored: honoured
+  honoring: honouring
+  honorable: honourable
+  humor: humour
+  humors: humours
+  armor: armour
+  armors: armours
+  armored: armoured
+  harbor: harbour
+  harbors: harbours
+  harbored: harboured
+  harboring: harbouring
+  rumor: rumour
+  rumors: rumours
+  rumored: rumoured
+  '\\blabor\\b': labour
+  labors: labours
+  labored: laboured
+  laboring: labouring
+  endeavor: endeavour
+  endeavors: endeavours
+  endeavored: endeavoured
+  endeavoring: endeavouring
+  tumor: tumour
+  tumors: tumours
+  vigor: vigour
+  valor: valour
+  glamor: glamour
+  favorite: favourite
+  favorites: favourites
+  favoritism: favouritism

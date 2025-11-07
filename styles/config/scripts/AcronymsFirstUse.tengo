@@ -1,0 +1,517 @@
+matches := []
+defined := {}
+reported := {}
+
+// Vale executes Tengo scripts without filesystem access, so this inlined
+// allow map mirrors the always-on acronyms from
+// .vale/Vocab/concordat/accept.txt. Keep both lists in sync: accept.txt
+// remains the canonical vocabulary reference, whilst this subset prevents the
+// first-use rule from repeatedly flagging ubiquitous abbreviations.
+allow := {
+  // Commonly accepted initialisms in this repo
+  "AGENTS": true,
+  "AND": true,
+  "API": true,
+  "ATOM": true,
+  "AT": true,
+  "BODY": true,
+  "CLI": true,
+  "COLON": true,
+  "COMMA": true,
+  "COMMENT": true,
+  "CPU": true,
+  "DECIDE": true,
+  "DECL": true,
+  "DEF": true,
+  "DNS": true,
+  "DX": true,
+  "EOF": true,
+  "EQEQ": true,
+  "EQ": true,
+  "ERROR": true,
+  "EXPR": true,
+  "FALSE": true,
+  "FN": true,
+  "GB": true,
+  "GPU": true,
+  "GUI": true,
+  "HTML": true,
+  "HTTPS": true,
+  "HTTP": true,
+  "IDE": true,
+  "IMPORT": true,
+  "IO": true,
+  "IP": true,
+  "JSON": true,
+  "LICENSE": true,
+  "LIT": true,
+  "MD": true,
+  "MIT": true,
+  "MUST": true,
+  "NODE": true,
+  "NOT": true,
+  "NUMBER": true,
+  "OK": true,
+  "OR": true,
+  "OS": true,
+  "OUTPUT": true,
+  "PLUS": true,
+  "POSIX": true,
+  "QA": true,
+  "RAM": true,
+  "README": true,
+  "SDK": true,
+  "SSH": true,
+  "TCP": true,
+  "TD": true,
+  "TLS": true,
+  "TOML": true,
+  "UDP": true,
+  "UI": true,
+  "UNIX": true,
+  "URL": true,
+  "USB": true,
+  "UTF": true,
+  "UX": true,
+  "YAML": true,
+
+  // Roman numerals appearing in API names
+  "II": true,
+  "III": true,
+  "IV": true,
+  "IX": true,
+  "VI": true,
+  "VII": true,
+  "VIII": true,
+  "XI": true,
+  "XII": true
+}
+
+// Character classification helpers operate on ASCII bytes only. Multi-byte
+// UTF-8 letters (for example, "É" or "Ü") are treated as non-letters and will
+// not be considered when deciding whether a token is an acronym.
+is_upper := func(ch) { return len(ch) == 1 && ch >= "A" && ch <= "Z" }
+is_lower := func(ch) { return len(ch) == 1 && ch >= "a" && ch <= "z" }
+is_digit := func(ch) { return len(ch) == 1 && ch >= "0" && ch <= "9" }
+is_space := func(ch) { return ch == " " || ch == "\t" || ch == "\n" || ch == "\r" }
+
+is_md_rule := func(word) {
+  if len(word) < 3 {
+    return false
+  }
+  if word[:2] != "MD" {
+    return false
+  }
+
+  idx := 2
+  limit := len(word)
+  for idx < limit {
+    if !is_digit(word[idx:idx+1]) {
+      return false
+    }
+    idx += 1
+  }
+
+  return true
+}
+
+s := scope
+n := len(s)
+
+comment_ranges := []
+ignore_ranges := []
+ignore_ranges_sorted := true
+
+add_ignore_range := func(begin, end) {
+  ignore_ranges = append(ignore_ranges, {"begin": begin, "end": end})
+  ignore_ranges_sorted = false
+}
+
+sort_ignore_ranges := func() {
+  if ignore_ranges_sorted {
+    return
+  }
+
+  total := len(ignore_ranges)
+  for i := 1; i < total; i += 1 {
+    rng := ignore_ranges[i]
+    j := i - 1
+
+    for j >= 0 && ignore_ranges[j]["begin"] > rng["begin"] {
+      ignore_ranges[j+1] = ignore_ranges[j]
+      j -= 1
+    }
+
+    ignore_ranges[j+1] = rng
+  }
+
+  ignore_ranges_sorted = true
+}
+
+ignore_range_end := func(idx) {
+  sort_ignore_ranges()
+
+  total := len(ignore_ranges)
+  left := 0
+  right := total - 1
+
+  for left <= right {
+    mid := (left + right) / 2
+    rng := ignore_ranges[mid]
+
+    if idx >= rng["begin"] && idx < rng["end"] {
+      return rng["end"]
+    }
+
+    if idx < rng["begin"] {
+      right = mid - 1
+    } else {
+      left = mid + 1
+    }
+  }
+
+  return -1
+}
+
+advance_past_ignore := func(idx) {
+  skip := ignore_range_end(idx)
+  if skip == -1 {
+    return idx
+  }
+  // Guard against malformed ranges: well-formed [begin, end) keep skip > idx.
+  // Step forward cautiously to avoid infinite loops if range construction errs.
+  if skip <= idx {
+    return idx + 1
+  }
+  return skip
+}
+
+pos := 0
+for pos < n {
+  if pos+4 <= n && s[pos:pos+4] == "<!--" {
+    end := pos + 4
+    closed := false
+
+    for end < n {
+      if end+3 <= n && s[end:end+3] == "-->" {
+        comment_ranges = append(comment_ranges, {"begin": pos, "end": end + 3})
+        pos = end + 3
+        closed = true
+        break
+      }
+      end += 1
+    }
+
+    if !closed {
+      comment_ranges = append(comment_ranges, {"begin": pos, "end": n})
+      pos = n
+    }
+
+    continue
+  }
+
+  pos += 1
+}
+
+is_in_comment := func(idx) {
+  total := len(comment_ranges)
+  current := 0
+
+  for current < total {
+    rng := comment_ranges[current]
+    if idx >= rng["begin"] && idx < rng["end"] {
+      return true
+    }
+    current += 1
+  }
+
+  return false
+}
+
+line_start := 0
+in_fence := false
+fence_char := ""
+fence_count := 0
+fence_begin := 0
+
+for line_start < n {
+  line_end := line_start
+  for line_end < n && s[line_end:line_end+1] != "\n" {
+    line_end += 1
+  }
+
+  content_idx := line_start
+  for content_idx < line_end {
+    ch_line := s[content_idx:content_idx+1]
+    if ch_line != " " && ch_line != "\t" {
+      break
+    }
+    content_idx += 1
+  }
+
+  if !in_fence {
+    if content_idx < line_end {
+      fence_candidate := s[content_idx:content_idx+1]
+      if fence_candidate == "`" || fence_candidate == "~" {
+        candidate_idx := content_idx
+        count := 0
+        for candidate_idx < line_end && s[candidate_idx:candidate_idx+1] == fence_candidate {
+          count += 1
+          candidate_idx += 1
+        }
+        if count >= 3 {
+          in_fence = true
+          fence_char = fence_candidate
+          fence_count = count
+          fence_begin = line_start
+        }
+      }
+    }
+  } else {
+    if content_idx < line_end {
+      fence_candidate := s[content_idx:content_idx+1]
+      if fence_candidate == fence_char {
+        candidate_idx := content_idx
+        count := 0
+        for candidate_idx < line_end && s[candidate_idx:candidate_idx+1] == fence_char {
+          count += 1
+          candidate_idx += 1
+        }
+        if count >= fence_count {
+          fence_end := line_end
+          if line_end < n {
+            fence_end += 1
+          }
+          add_ignore_range(fence_begin, fence_end)
+          in_fence = false
+        }
+      }
+    }
+  }
+
+  if line_end >= n {
+    line_start = n
+  } else {
+    line_start = line_end + 1
+  }
+}
+
+if in_fence {
+  add_ignore_range(fence_begin, n)
+}
+
+inline_pos := 0
+for inline_pos < n {
+  next_inline := advance_past_ignore(inline_pos)
+  if next_inline != inline_pos {
+    inline_pos = next_inline
+    continue
+  }
+
+  if inline_pos+1 <= n && s[inline_pos:inline_pos+1] == "`" {
+    j := inline_pos
+    ticks := 0
+    for j < n && s[j:j+1] == "`" {
+      ticks += 1
+      j += 1
+    }
+
+    if ticks > 0 {
+      search := j
+      found := false
+      for search < n {
+        next_search := advance_past_ignore(search)
+        if next_search != search {
+          search = next_search
+          continue
+        }
+
+        if search+1 <= n && s[search:search+1] == "`" {
+          k := search
+          count := 0
+          for k < n && s[k:k+1] == "`" {
+            count += 1
+            k += 1
+          }
+          if count == ticks {
+            add_ignore_range(inline_pos, k)
+            inline_pos = k
+            found = true
+            break
+          }
+          search = k
+          continue
+        }
+
+        search += 1
+      }
+
+      if found {
+        continue
+      }
+    }
+  }
+
+  inline_pos += 1
+}
+
+link_pos := 0
+for link_pos < n {
+  next_link := advance_past_ignore(link_pos)
+  if next_link != link_pos {
+    link_pos = next_link
+    continue
+  }
+
+  ch_link := s[link_pos:link_pos+1]
+
+  if ch_link == "[" {
+    close := link_pos + 1
+    for close < n {
+      next_close := advance_past_ignore(close)
+      if next_close != close {
+        close = next_close
+        continue
+      }
+
+      if s[close:close+1] == "]" {
+        break
+      }
+      close += 1
+    }
+
+    if close < n && close+1 < n && s[close+1:close+2] == "(" {
+      paren := close + 2
+      depth := 1
+      for paren < n {
+        next_paren := advance_past_ignore(paren)
+        if next_paren != paren {
+          paren = next_paren
+          continue
+        }
+
+        ch_paren := s[paren:paren+1]
+        if ch_paren == "(" {
+          depth += 1
+        } else if ch_paren == ")" {
+          depth -= 1
+          if depth == 0 {
+            add_ignore_range(close+2, paren)
+            link_pos = paren + 1
+            break
+          }
+        }
+        paren += 1
+      }
+
+      if depth == 0 {
+        continue
+      }
+    }
+  } else if ch_link == "<" {
+    end := link_pos + 1
+    for end < n {
+      next_end := advance_past_ignore(end)
+      if next_end != end {
+        end = next_end
+        continue
+      }
+
+      if s[end:end+1] == ">" {
+        add_ignore_range(link_pos, end+1)
+        link_pos = end + 1
+        break
+      }
+      end += 1
+    }
+    if link_pos != end + 1 {
+      link_pos += 1
+    }
+    continue
+  }
+
+  link_pos += 1
+}
+
+i := 0
+
+for i < n {
+  next_i := advance_past_ignore(i)
+  if next_i != i {
+    // Acronym detection only runs when the cursor sits outside any ignore range.
+    i = next_i
+    continue
+  }
+
+  ch := s[i : i+1]
+  if is_upper(ch) {
+    j := i
+    uppers := 0
+
+    for j < n {
+      curr := s[j:j+1]
+      if is_upper(curr) {
+        uppers += 1
+        j += 1
+        continue
+      }
+      if uppers >= 2 && is_digit(curr) {
+        // Permit alphanumeric acronyms such as "F16" or "TLS1".
+        j += 1
+        continue
+      }
+      break
+    }
+
+    if uppers >= 2 {
+      // Avoid treating CamelCase prefixes (e.g., "DDlog") as acronyms when a
+      // lowercase character immediately follows.
+      if j < n && is_lower(s[j:j+1]) {
+        i = j
+        continue
+      }
+
+      base := s[i:j]
+
+      skip := 0
+      if j+2 <= n && (s[j:j+2] == "'s" || s[j:j+2] == "’s") {
+        skip = 2
+      } else if j+1 <= n && s[j:j+1] == "s" {
+        skip = 1
+      }
+
+      if is_md_rule(base) && is_in_comment(i) {
+        i = j + skip
+        continue
+      }
+
+      prev := ""
+      k := i - 1
+      for k >= 0 {
+        prev = s[k:k+1]
+        if is_space(prev) {
+          k -= 1
+          continue
+        }
+        break
+      }
+
+      if prev == "(" {
+        // Mark "(ACRONYM" sequences as definitions so subsequent uses are silent.
+        defined[base] = true
+      } else {
+        if !defined[base] && !allow[base] && !reported[base] {
+          matches = append(matches, {"begin": i, "end": j})
+          reported[base] = true
+        }
+      }
+
+      i = j + skip
+      continue
+    }
+  }
+
+  i += 1
+}
+
+matches

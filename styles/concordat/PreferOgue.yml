@@ -1,0 +1,12 @@
+extends: substitution
+message: "Use '-ogue' forms: '%[2]s' → '%[1]s'."
+link: "House style: analogue, catalogue (UI 'dialogue' per guide)."
+level: error
+ignorecase: true
+# Word-boundary regexes already enforce whole-word matching; keep nonword false
+# to avoid matching partial tokens like "analogous".
+nonword: false
+swap:
+  '\\banalog\\b': analogue
+  '\\bcatalog\\b': catalogue
+  '\\bdialog\\b': dialogue

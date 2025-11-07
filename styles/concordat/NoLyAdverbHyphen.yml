@@ -1,0 +1,17 @@
+extends: existence
+message: "Don’t hyphenate an -ly adverb + adjective: write ‘%s %s’."
+link: https://developers.google.com/style/hyphens
+level: warning
+ignorecase: true
+nonword: true
+scope: text
+
+# Be conservative: only flag common true adverbs.
+tokens:
+  - '\b(?:fully|highly|poorly|closely|loosely|mostly|largely|publicly|privately|explicitly|implicitly|strictly|broadly|nearly|clearly|deeply|jointly|separately|technically|internally|externally|automatically|manually|locally|globally|natively|remotely|strongly|weakly|readily|commonly|rarely|newly|partly|wholly)-[A-Za-z]+\b'
+
+# Avoid false positives where the “-ly” word isn’t an adverb.
+exceptions:
+  - '\bearly-[A-Za-z]+'
+  - '\bfriendly-[A-Za-z]+'
+  - '\bfamily-[A-Za-z]+'
