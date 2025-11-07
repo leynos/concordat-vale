@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import collections.abc as cabc
 import os
 import re
 import shutil
@@ -148,41 +149,45 @@ def _vale_supports_stdin_flag(vale_bin: str) -> bool:
 
 def _as_ini_text(ini: IniLike) -> str:
     """Normalise .vale.ini input into a text blob."""
-    if isinstance(ini, (str, os.PathLike)):
-        candidate = Path(os.fspath(ini))
-        if candidate.exists():
-            return candidate.read_text(encoding="utf-8")
-        if isinstance(ini, str):
-            return ini
+    match ini:
+        case str() as text:
+            candidate = Path(text)
+            if candidate.exists():
+                return candidate.read_text(encoding="utf-8")
+            return text
+        case os.PathLike() as path_like:
+            candidate = Path(os.fspath(path_like))
+            if candidate.exists():
+                return candidate.read_text(encoding="utf-8")
+            raise UnsupportedIniInputError
+        case cabc.Mapping() as mapping:
+            lines: list[str] = []
 
-    if isinstance(ini, typ.Mapping):
-        lines: list[str] = []
+            def _emit_section(body: typ.Mapping[str, typ.Any]) -> None:
+                for key, value in body.items():
+                    if isinstance(value, (list, tuple)):
+                        rendered = ", ".join(map(str, value))
+                    else:
+                        rendered = str(value)
+                    lines.append(f"{key} = {rendered}")
 
-        def _emit_section(body: typ.Mapping[str, typ.Any]) -> None:
-            for key, value in body.items():
-                if isinstance(value, (list, tuple)):
-                    rendered = ", ".join(map(str, value))
-                else:
-                    rendered = str(value)
-                lines.append(f"{key} = {rendered}")
+            root = mapping.get("__root__", mapping.get("top", {}))
+            if isinstance(root, typ.Mapping):
+                _emit_section(root)
 
-        root = ini.get("__root__", ini.get("top", {}))
-        if isinstance(root, typ.Mapping):
-            _emit_section(root)
+            for section, body in mapping.items():
+                if section in {"__root__", "top"}:
+                    continue
+                header = section if str(section).startswith("[") else f"[{section}]"
+                lines.append("")
+                if not isinstance(body, typ.Mapping):
+                    raise InvalidIniSectionError(str(section))
+                lines.append(header)
+                _emit_section(body)
 
-        for section, body in ini.items():
-            if section in {"__root__", "top"}:
-                continue
-            header = section if str(section).startswith("[") else f"[{section}]"
-            lines.append("")
-            if not isinstance(body, typ.Mapping):
-                raise InvalidIniSectionError(str(section))
-            lines.append(header)
-            _emit_section(body)
-
-        return "\n".join(lines).strip() + "\n"
-
-    raise UnsupportedIniInputError
+            return "\n".join(lines).strip() + "\n"
+        case _:
+            raise UnsupportedIniInputError
 
 
 def _force_styles_path(ini_text: str, styles_dirname: str = "styles") -> str:
@@ -284,10 +289,15 @@ class Valedate:
 
         styles_dir = self.root / "styles"
         styles_dir.mkdir(parents=True, exist_ok=True)
-        if isinstance(styles, typ.Mapping):
-            _materialise_tree(styles_dir, styles)
-        elif isinstance(styles, Path):
-            _copy_styles_into(styles_dir, styles)
+        match styles:
+            case cabc.Mapping():
+                _materialise_tree(styles_dir, styles)
+            case Path():
+                _copy_styles_into(styles_dir, styles)
+            case None:
+                pass
+            case _:
+                raise StylesTreeTypeError(Path(str(styles)))
 
         ini_text = _force_styles_path(_as_ini_text(ini), styles_dirname="styles")
         self.ini_path = self.root / ".vale.ini"
