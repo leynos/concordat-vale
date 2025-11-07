@@ -1,4 +1,24 @@
-"""In-process Vale harness tailored for rule development tests."""
+r"""Vale testing harness for Concordat rule development.
+
+This module builds isolated Vale sandboxes so individual rules can be linted
+without polluting or depending on the user's configuration. It materialises a
+temporary ``styles/`` tree, writes a bespoke ``.vale.ini``, shells out to the
+Vale CLI, and decodes JSON diagnostics into typed structures. Use it whenever
+you need deterministic tests around custom rules or styles.
+
+Example
+-------
+>>> ini = {
+...     "__root__": {"MinAlertLevel": "suggestion"},
+...     "[*.md]": {"BasedOnStyles": "concordat"},
+... }
+>>> from pathlib import Path
+>>> with Valedate(ini, styles=Path("styles")) as env:
+...     diags = env.lint("# Title Case Heading\n\nBody")
+...     files = env.lint_path(Path("docs/guide.md"))
+>>> len(diags)  # doctest: +SKIP
+1
+"""
 
 from __future__ import annotations
 
@@ -183,10 +203,12 @@ def _as_ini_text(ini: IniLike) -> str:
                     continue
                 header = section if str(section).startswith("[") else f"[{section}]"
                 lines.append("")
-                if not isinstance(body, cabc.Mapping):
-                    raise InvalidIniSectionError(str(section))
-                lines.append(header)
-                _emit_section(body)
+                match body:
+                    case cabc.Mapping():
+                        lines.append(header)
+                        _emit_section(body)
+                    case _:
+                        raise InvalidIniSectionError(str(section))
 
             return "\n".join(lines).strip() + "\n"
         case _:
