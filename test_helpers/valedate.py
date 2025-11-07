@@ -74,14 +74,47 @@ class ValeBinaryNotFoundError(FileNotFoundError, ValedateError):
 
 
 class ValeAction(msgspec.Struct, kw_only=True):
-    """Typed view of Vale's optional Action payload."""
+    """Structured representation of Vale's optional Action payload.
+
+    Attributes
+    ----------
+    name : str | None, optional
+        Vale's ``Action.Name`` field. Defaults to ``None`` if the rule did not
+        attach an action.
+    params : list[str] | None, optional
+        Vale's ``Action.Params`` field. Defaults to ``None`` when the rule has
+        no actionable remediation parameters.
+    """
 
     name: str | None = msgspec.field(default=None, name="Name")
     params: list[str] | None = msgspec.field(default=None, name="Params")
 
 
 class ValeDiagnostic(msgspec.Struct, kw_only=True):
-    """Typed representation of Vale's core.Alert JSON output."""
+    """Structured representation of Vale's ``core.Alert`` payload.
+
+    Attributes
+    ----------
+    check : str
+        Fully-qualified rule name, for example ``concordat.RuleName``.
+    message : str
+        Human-readable explanation attached to the alert.
+    severity : str
+        Vale's severity level such as ``warning`` or ``error``.
+    line : int
+        One-based line number where the alert originated.
+    span : tuple[int, int], optional
+        Start/end offsets for the match within the line. Defaults to ``(0, 0)``
+        when Vale omits span data.
+    link : str | None, optional
+        Optional documentation link describing the rule.
+    description : str | None, optional
+        Optional long-form explanation of the rule.
+    match : str | None, optional
+        Matched text snippet if provided by Vale.
+    action : ValeAction | None, optional
+        Optional structured remediation metadata exposed by the rule.
+    """
 
     check: str = msgspec.field(name="Check")
     message: str = msgspec.field(name="Message")
@@ -99,6 +132,18 @@ def _which_vale(vale_bin: str) -> str:
     if path is None:
         raise ValeBinaryNotFoundError(vale_bin)
     return path
+
+
+def _vale_supports_stdin_flag(vale_bin: str) -> bool:
+    """Return True if the Vale binary understands the --stdin flag."""
+    probe = subprocess.run(  # noqa: S603  # TODO(concordat-vale): FIXME capability probe using trusted Vale binary (https://vale.sh/docs/cli)
+        [vale_bin, "--help"],
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    help_text = (probe.stdout or "") + (probe.stderr or "")
+    return "--stdin" in help_text
 
 
 def _as_ini_text(ini: IniLike) -> str:
@@ -192,7 +237,33 @@ def _decode_vale_json(stdout: str) -> dict[str, list[ValeDiagnostic]]:
 
 
 class Valedate:
-    """Temporary Vale environment for deterministic rule tests."""
+    """Manage a temporary Vale environment tailored for tests.
+
+    Parameters
+    ----------
+    ini : IniLike
+        Either a raw ``.vale.ini`` string, a filesystem path, or dictionary
+        representation describing the desired configuration.
+    styles : StylesLike | None, optional
+        Existing ``styles/`` directory or an in-memory tree to copy into the
+        sandbox. Defaults to ``None`` for tests that only rely on built-in
+        styles.
+    vale_bin : str, default "vale"
+        Vale executable name or path to invoke.
+    stdin_ext : str, default ".md"
+        Extension to associate with stdin content so Vale selects the right
+        lexer and scopes.
+    auto_sync : bool, default False
+        When ``True`` and the configuration declares ``Packages``, the harness
+        runs ``vale sync`` once to resolve dependencies.
+    min_alert_level : str | None, optional
+        Default ``--minAlertLevel`` flag applied to all lint operations.
+
+    Raises
+    ------
+    ValeBinaryNotFoundError
+        Raised when ``vale_bin`` cannot be located on ``PATH``.
+    """
 
     def __init__(
         self,
@@ -207,6 +278,7 @@ class Valedate:
         self._tmp = tempfile.TemporaryDirectory(prefix="valedate-")
         self.root = Path(self._tmp.name)
         self.vale_bin = _which_vale(vale_bin)
+        self._stdin_flag_supported = _vale_supports_stdin_flag(self.vale_bin)
         self.stdin_ext = stdin_ext
         self.default_min_level = min_alert_level
 
@@ -231,13 +303,36 @@ class Valedate:
         ext: str | None = None,
         min_alert_level: str | None = None,
     ) -> typ.Sequence[ValeDiagnostic]:
-        """Lint a string, returning diagnostics for the synthetic <stdin> file."""
+        """Lint a string inside the temporary environment.
+
+        Parameters
+        ----------
+        text : str
+            Markdown (or other supported format) source to lint.
+        ext : str, optional
+            Override for the stdin extension. Falls back to ``stdin_ext`` when
+            ``None``.
+        min_alert_level : str | None, optional
+            Per-call override for ``--minAlertLevel``.
+
+        Returns
+        -------
+        Sequence[ValeDiagnostic]
+            Diagnostics reported for the synthetic ``<stdin>`` input.
+
+        Raises
+        ------
+        ValeExecutionError
+            Raised when Vale returns a runtime error (exit code ``>= 2``).
+        """
         args = [
             "--no-global",
             "--no-exit",
             "--output=JSON",
             f"--ext={ext or self.stdin_ext}",
         ]
+        if self._stdin_flag_supported:
+            args.append("--stdin")
         level = min_alert_level or self.default_min_level
         if level is not None:
             args.append(f"--minAlertLevel={level}")
@@ -251,7 +346,25 @@ class Valedate:
         *,
         min_alert_level: str | None = None,
     ) -> dict[str, list[ValeDiagnostic]]:
-        """Lint a file or directory path, returning alerts keyed by path."""
+        """Lint a file or directory path and group alerts by reported path.
+
+        Parameters
+        ----------
+        path : Path
+            Filesystem path to a single document or a directory tree.
+        min_alert_level : str | None, optional
+            Override for ``--minAlertLevel`` used in this invocation.
+
+        Returns
+        -------
+        dict[str, list[ValeDiagnostic]]
+            Mapping of Vale's reported path to emitted diagnostics.
+
+        Raises
+        ------
+        ValeExecutionError
+            Raised when Vale returns a runtime error (exit code ``>= 2``).
+        """
         args = ["--no-global", "--no-exit", "--output=JSON"]
         level = min_alert_level or self.default_min_level
         if level is not None:
@@ -260,7 +373,13 @@ class Valedate:
         return _decode_vale_json(output)
 
     def __enter__(self) -> Valedate:
-        """Return self to support usage in with-statements."""
+        """Return self so the harness can act as a context manager.
+
+        Returns
+        -------
+        Valedate
+            The current harness instance.
+        """
         return self
 
     def __exit__(
@@ -269,16 +388,51 @@ class Valedate:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
-        """Ensure the temporary tree is removed when leaving the context."""
+        """Clean up the sandbox when the context manager exits.
+
+        Parameters
+        ----------
+        exc_type : type[BaseException] | None
+            Exception type raised inside the context (if any).
+        exc : BaseException | None
+            Exception instance raised inside the context (if any).
+        tb : TracebackType | None
+            Traceback associated with the exception.
+        """
         self.cleanup()
 
     def cleanup(self) -> None:
-        """Remove the temporary working tree created for this harness."""
+        """Remove the temporary working tree created for this harness.
+
+        Returns
+        -------
+        None
+            This method performs cleanup side effects only.
+        """
         self._tmp.cleanup()
 
     def _run(self, args: list[str], stdin: str | None = None) -> str:
+        """Execute Vale with the provided arguments.
+
+        Parameters
+        ----------
+        args : list[str]
+            Command-line arguments appended after ``vale`` and ``--config``.
+        stdin : str | None, optional
+            Optional text piped to Vale's standard input.
+
+        Returns
+        -------
+        str
+            Raw stdout captured from the Vale invocation.
+
+        Raises
+        ------
+        ValeExecutionError
+            Raised when Vale exits with ``>= 2`` signalling a runtime failure.
+        """
         cmd = [self.vale_bin, f"--config={self.ini_path}", *args]
-        proc = subprocess.run(  # noqa: S603 - we intentionally shell out to Vale
+        proc = subprocess.run(  # noqa: S603  # TODO(concordat-vale): FIXME intentional Vale CLI invocation with controlled args (https://vale.sh/docs/cli)
             cmd,
             cwd=self.root,
             input=stdin.encode("utf-8") if stdin is not None else None,

@@ -6,7 +6,7 @@ import textwrap
 import typing as typ
 
 if typ.TYPE_CHECKING:
-    from tests.valedate import Valedate
+    from test_helpers.valedate import Valedate
 
 
 def test_heading_sentence_case_flags_title_case_headings(
@@ -17,12 +17,16 @@ def test_heading_sentence_case_flags_title_case_headings(
 
     diags = concordat_vale.lint(text)
 
-    assert len(diags) == 1
+    assert len(diags) == 1, "expected exactly one diagnostic in title-case heading"
     diag = diags[0]
-    assert diag.check == "concordat.HeadingSentenceCase"
-    assert diag.message == "Use sentence case for headings."
-    assert diag.severity == "warning"
-    assert diag.line == 1
+    assert diag.check == "concordat.HeadingSentenceCase", (
+        "unexpected rule triggered for title-case heading"
+    )
+    assert diag.message == "Use sentence case for headings.", (
+        "unexpected diagnostic message"
+    )
+    assert diag.severity == "warning", "diagnostic should warn rather than error"
+    assert diag.line == 1, "heading should be reported on the first line"
 
 
 def test_heading_sentence_case_allows_sentence_case_headings(
@@ -41,7 +45,7 @@ def test_heading_sentence_case_allows_sentence_case_headings(
 
     diags = concordat_vale.lint(text)
 
-    assert diags == []
+    assert diags == [], "expected no diagnostics for sentence-case headings"
 
 
 def test_heading_sentence_case_reports_each_heading_in_files(
@@ -64,8 +68,32 @@ def test_heading_sentence_case_reports_each_heading_in_files(
 
     results = concordat_vale.lint_path(doc_path)
 
-    assert str(doc_path) in results
+    assert str(doc_path) in results, "expected lint_path to return doc diagnostics"
     alerts = results[str(doc_path)]
-    assert len(alerts) == 2
-    assert {alert.line for alert in alerts} == {1, 5}
-    assert {alert.check for alert in alerts} == {"concordat.HeadingSentenceCase"}
+    assert len(alerts) == 2, "expected both headings to raise diagnostics"
+    assert {alert.line for alert in alerts} == {1, 5}, "incorrect lines flagged"
+    assert {alert.check for alert in alerts} == {"concordat.HeadingSentenceCase"}, (
+        "unexpected rule triggered"
+    )
+
+
+def test_heading_sentence_case_allows_body_only_files(
+    concordat_vale: Valedate,
+) -> None:
+    """Body-only files should not produce heading diagnostics."""
+    doc_path = concordat_vale.root / "body.md"
+    doc_path.write_text(
+        textwrap.dedent(
+            """\
+            Some paragraph text without headings.
+
+            Another paragraph, still without heading markers.
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    results = concordat_vale.lint_path(doc_path)
+
+    alerts = results.get(str(doc_path), [])
+    assert alerts == [], "expected no diagnostics for body-only document"

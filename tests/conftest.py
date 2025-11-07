@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.valedate import Valedate
+from test_helpers.valedate import Valedate
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _STYLES = _REPO_ROOT / "styles"
@@ -19,7 +19,7 @@ _VALE_INI = {
 
 
 @pytest.fixture
-def concordat_vale() -> typ.Generator[Valedate, None, None]:
+def concordat_vale() -> typ.Iterator[Valedate]:
     """Provide a Vale sandbox loaded with the concordat style."""
     with Valedate(_VALE_INI, styles=_STYLES) as env:
         yield env
