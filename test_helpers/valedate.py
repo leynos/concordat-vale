@@ -432,7 +432,7 @@ class Valedate:
             Raised when Vale exits with ``>= 2`` signalling a runtime failure.
         """
         cmd = [self.vale_bin, f"--config={self.ini_path}", *args]
-        proc = subprocess.run(  # noqa: S603  # TODO(concordat-vale): FIXME intentional Vale CLI invocation with controlled args (https://vale.sh/docs/cli)
+        proc = subprocess.run(  # noqa: S603 FIXME: shell out to Vale to drive rule integration tests
             cmd,
             cwd=self.root,
             input=stdin.encode("utf-8") if stdin is not None else None,
