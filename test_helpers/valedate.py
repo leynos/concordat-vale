@@ -159,28 +159,31 @@ def _as_ini_text(ini: IniLike) -> str:
             candidate = Path(os.fspath(path_like))
             if candidate.exists():
                 return candidate.read_text(encoding="utf-8")
-            raise UnsupportedIniInputError
+            msg = f"INI path {candidate} does not exist"
+            raise FileNotFoundError(msg)
         case cabc.Mapping() as mapping:
             lines: list[str] = []
 
             def _emit_section(body: typ.Mapping[str, typ.Any]) -> None:
                 for key, value in body.items():
-                    if isinstance(value, (list, tuple)):
-                        rendered = ", ".join(map(str, value))
-                    else:
-                        rendered = str(value)
+                    match value:
+                        case list() | tuple():
+                            rendered = ", ".join(map(str, value))
+                        case _:
+                            rendered = str(value)
                     lines.append(f"{key} = {rendered}")
 
             root = mapping.get("__root__", mapping.get("top", {}))
-            if isinstance(root, typ.Mapping):
-                _emit_section(root)
+            match root:
+                case cabc.Mapping():
+                    _emit_section(root)
 
             for section, body in mapping.items():
                 if section in {"__root__", "top"}:
                     continue
                 header = section if str(section).startswith("[") else f"[{section}]"
                 lines.append("")
-                if not isinstance(body, typ.Mapping):
+                if not isinstance(body, cabc.Mapping):
                     raise InvalidIniSectionError(str(section))
                 lines.append(header)
                 _emit_section(body)
@@ -201,10 +204,17 @@ def _materialise_tree(root: Path, mapping: typ.Mapping[str, str | bytes]) -> Non
     for rel_path, contents in mapping.items():
         destination = root / rel_path
         destination.parent.mkdir(parents=True, exist_ok=True)
-        if isinstance(contents, bytes):
-            destination.write_bytes(contents)
-        else:
-            destination.write_text(contents, encoding="utf-8")
+        match contents:
+            case bytes():
+                destination.write_bytes(contents)
+            case str():
+                destination.write_text(contents, encoding="utf-8")
+            case _:
+                msg = (
+                    "style file contents must be str or bytes, got "
+                    f"{type(contents).__name__}"
+                )
+                raise TypeError(msg)
 
 
 def _copy_styles_into(dst: Path, styles: Path) -> None:
@@ -226,19 +236,19 @@ def _decode_vale_json(stdout: str) -> dict[str, list[ValeDiagnostic]]:
     def _to_alerts(seq: object) -> list[ValeDiagnostic]:
         return msgspec.convert(seq, type=list[ValeDiagnostic])
 
-    if isinstance(value, dict):
-        return {str(path): _to_alerts(alerts) for path, alerts in value.items()}
-
-    if isinstance(value, list):
-        if value and isinstance(value[0], dict) and {"Path", "Alerts"} <= set(value[0]):
+    match value:
+        case dict():
+            return {str(path): _to_alerts(alerts) for path, alerts in value.items()}
+        case [dict() as first, *_] if {"Path", "Alerts"} <= set(first):
             output: dict[str, list[ValeDiagnostic]] = {}
             for file_obj in value:
                 path = str(file_obj["Path"])
                 output[path] = _to_alerts(file_obj["Alerts"])
             return output
-        return {"<stdin>": _to_alerts(value)}
-
-    return {}
+        case list():
+            return {"<stdin>": _to_alerts(value)}
+        case _:
+            return {}
 
 
 class Valedate:
@@ -297,7 +307,11 @@ class Valedate:
             case None:
                 pass
             case _:
-                raise StylesTreeTypeError(Path(str(styles)))
+                msg = (
+                    "styles must be Path, Mapping, or None, got "
+                    f"{type(styles).__name__}"
+                )
+                raise TypeError(msg)
 
         ini_text = _force_styles_path(_as_ini_text(ini), styles_dirname="styles")
         self.ini_path = self.root / ".vale.ini"
