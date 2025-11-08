@@ -19,7 +19,7 @@
 
 ### Parameters
 
-- `--project-root` defaults to `.` and anchors every relative path so the CLI
+- `--project-root` defaults to `.` and anchors every relative path, so the CLI
   can be run from outside the repository.
 - `--styles-path` defaults to `styles`. The command auto-discovers style
   directories under that path (excluding `config`) unless `--style` is
