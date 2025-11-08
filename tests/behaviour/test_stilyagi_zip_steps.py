@@ -112,7 +112,7 @@ def run_stilyagi_zip(repo_root: Path, scenario_state: ScenarioState) -> None:
 def archive_exists(scenario_state: ScenarioState) -> None:
     """Assert that the CLI produced a ZIP artefact in the expected folder."""
     archive_path = scenario_state["archive_path"]
-    assert Path(archive_path).exists()
+    assert Path(archive_path).exists(), "Expected the zip archive to exist"
 
 
 @then("the archive includes the concordat content and config")
@@ -121,8 +121,10 @@ def archive_has_content(scenario_state: ScenarioState) -> None:
     archive_path = scenario_state["archive_path"]
     with ZipFile(archive_path) as archive:
         names = set(archive.namelist())
-        assert any(name.endswith("concordat/OxfordComma.yml") for name in names)
-        assert any("/config/" in name for name in names)
+        assert any(
+            name.endswith("concordat/OxfordComma.yml") for name in names
+        ), "Archive missing concordat rules"
+        assert any("/config/" in name for name in names), "Archive missing shared config"
 
 
 @then("the archive contains a .vale.ini referencing the concordat style")
@@ -131,8 +133,12 @@ def archive_has_ini(scenario_state: ScenarioState) -> None:
     archive_path = scenario_state["archive_path"]
     with ZipFile(archive_path) as archive:
         ini_body = archive.read(".vale.ini").decode("utf-8")
-    assert "StylesPath = styles" in ini_body
-    assert "BasedOnStyles = concordat" in ini_body
+    assert "StylesPath = styles" in ini_body, (
+        "Generated ini should point StylesPath at styles/"
+    )
+    assert "BasedOnStyles = concordat" in ini_body, (
+        "Generated ini should enable the concordat style"
+    )
 
 
 @then("the archive .vale.ini uses the STILYAGI_ environment variable values")
