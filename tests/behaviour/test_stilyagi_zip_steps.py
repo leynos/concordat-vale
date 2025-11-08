@@ -91,7 +91,7 @@ def run_stilyagi_zip(repo_root: Path, scenario_state: ScenarioState) -> None:
         "9.9.9-test",
         "--force",
     ]
-    result = subprocess.run(  # noqa: S603 - arguments are repository-controlled
+    result = subprocess.run(  # FIXME: arguments are repository-controlled in tests. # noqa: S603
         command,
         cwd=repo_root,
         check=True,
@@ -204,9 +204,7 @@ def test_stilyagi_zip_cli_errors(tmp_path: Path, repo_root: Path, case: str) -> 
         "zip",
         *args,
     ]
-    # noqa: S603 is acceptable here because every argument is constructed from
-    # controlled fixtures and test data rather than user input.
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(  # FIXME: arguments come from controlled fixtures in tests. # noqa: S603
         command,
         cwd=repo_root,
         capture_output=True,
@@ -214,5 +212,9 @@ def test_stilyagi_zip_cli_errors(tmp_path: Path, repo_root: Path, case: str) -> 
         check=False,
     )
 
-    assert result.returncode != 0
-    assert expected_error in result.stderr
+    assert result.returncode != 0, (
+        "CLI should fail for the parametrised error scenario"
+    )
+    assert expected_error in result.stderr, (
+        f"CLI stderr should contain {expected_error!r}"
+    )
