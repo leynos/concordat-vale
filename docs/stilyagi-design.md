@@ -49,7 +49,7 @@
 
 - Defaults to `StylesPath = styles`, but honours the CLI/environment override
   so packages can opt into custom directory names without post-processing.
-- Injects `BasedOnStyles` using the discovered style directory names so the
+- Injects `BasedOnStyles` using the discovered style directory names, so the
   value remains consistent with Vale's casing rules or any explicit `--style`
   values coming from `STILYAGI_STYLE`.
 - Records `Vocab = <name>` only when a vocabulary is chosen so consumers are not
