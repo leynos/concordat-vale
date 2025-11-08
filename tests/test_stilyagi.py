@@ -86,7 +86,7 @@ def test_package_styles_refuses_to_overwrite_without_force(
         force=False,
     )
 
-    assert first.exists()
+    assert first.exists(), f"Initial archive not created at {first}"
 
     with pytest.raises(FileExistsError):
         package_styles(
