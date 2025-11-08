@@ -72,7 +72,8 @@ def test_cli_refuses_to_overwrite_without_force(staged_project: Path) -> None:
 
     second = _invoke_cli(*base_args)
     assert second.returncode != 0, (
-        f"Second packaging should fail without --force: {second.stderr or second.stdout}"
+        "Second packaging should fail without --force: "
+        f"{second.stderr or second.stdout}"
     )
     assert "already exists" in second.stderr, (
         f"Expected overwrite warning in stderr: {second.stderr}"

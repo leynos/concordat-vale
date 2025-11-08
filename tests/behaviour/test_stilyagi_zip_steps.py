@@ -91,7 +91,8 @@ def run_stilyagi_zip(repo_root: Path, scenario_state: ScenarioState) -> None:
         "9.9.9-test",
         "--force",
     ]
-    result = subprocess.run(  # FIXME: arguments are repository-controlled in tests. # noqa: S603
+    # NOTE: arguments are repository-controlled in tests.
+    result = subprocess.run(  # noqa: S603
         command,
         cwd=repo_root,
         check=True,
@@ -123,10 +124,12 @@ def archive_has_content(scenario_state: ScenarioState) -> None:
     expected_rule = f"{style_name}/OxfordComma.yml"
     with ZipFile(archive_path) as archive:
         names = set(archive.namelist())
-        assert any(
-            name.endswith(expected_rule) for name in names
-        ), f"Archive missing {expected_rule}"
-        assert any("/config/" in name for name in names), "Archive missing shared config"
+        assert any(name.endswith(expected_rule) for name in names), (
+            f"Archive missing {expected_rule}"
+        )
+        assert any("/config/" in name for name in names), (
+            "Archive missing shared config"
+        )
 
 
 @then("the archive contains a .vale.ini referencing the concordat style")
@@ -204,7 +207,8 @@ def test_stilyagi_zip_cli_errors(tmp_path: Path, repo_root: Path, case: str) -> 
         "zip",
         *args,
     ]
-    result = subprocess.run(  # FIXME: arguments come from controlled fixtures in tests. # noqa: S603
+    # NOTE: arguments come from controlled fixtures in tests.
+    result = subprocess.run(  # noqa: S603
         command,
         cwd=repo_root,
         capture_output=True,
@@ -212,9 +216,7 @@ def test_stilyagi_zip_cli_errors(tmp_path: Path, repo_root: Path, case: str) -> 
         check=False,
     )
 
-    assert result.returncode != 0, (
-        "CLI should fail for the parametrised error scenario"
-    )
+    assert result.returncode != 0, "CLI should fail for the parametrised error scenario"
     assert expected_error in result.stderr, (
         f"CLI stderr should contain {expected_error!r}"
     )
