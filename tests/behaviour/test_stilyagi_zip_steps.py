@@ -204,6 +204,8 @@ def test_stilyagi_zip_cli_errors(tmp_path: Path, repo_root: Path, case: str) -> 
         "zip",
         *args,
     ]
+    # noqa: S603 is acceptable here because every argument is constructed from
+    # controlled fixtures and test data rather than user input.
     result = subprocess.run(  # noqa: S603
         command,
         cwd=repo_root,
