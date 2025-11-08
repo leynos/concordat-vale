@@ -24,7 +24,7 @@ cover Markdown, AsciiDoc, and text files.
   `uv run stilyagi zip --archive-version 2025.11.07`). When omitted, the value
   from `pyproject.toml` is used.
 - `--style` (repeatable) limits the archive to specific style directories when
-  more styles are added later. Without this flag every non-config style in
+  more styles are added later. Without this flag, every non-config style in
   `styles/` is included.
 - `--output-dir` changes the destination directory (defaults to `dist`).
 - `--project-root` should be supplied when running the command from outside the
