@@ -81,3 +81,100 @@ def test_package_styles_refuses_to_overwrite_without_force(
             target_glob="*.{md,txt}",
             force=False,
         )
+
+
+def test_package_styles_overwrites_with_force(sample_project: Path) -> None:
+    """Allow overwriting archives when --force is provided."""
+    archive_path = package_styles(
+        project_root=sample_project,
+        styles_path=Path("styles"),
+        output_dir=Path("dist"),
+        version="1.2.3",
+        explicit_styles=None,
+        vocabulary=None,
+        target_glob="*.md",
+        force=False,
+    )
+
+    with ZipFile(archive_path) as archive:
+        assert "[*.md]" in archive.read(".vale.ini").decode("utf-8")
+
+    overwritten = package_styles(
+        project_root=sample_project,
+        styles_path=Path("styles"),
+        output_dir=Path("dist"),
+        version="1.2.3",
+        explicit_styles=None,
+        vocabulary=None,
+        target_glob="*.txt",
+        force=True,
+    )
+
+    assert overwritten == archive_path
+    with ZipFile(overwritten) as archive:
+        ini_body = archive.read(".vale.ini").decode("utf-8")
+    assert "[*.txt]" in ini_body
+
+
+def test_package_styles_raises_when_styles_missing(tmp_path: Path) -> None:
+    """Fail fast when the styles directory does not exist."""
+    project_root = tmp_path / "proj"
+    project_root.mkdir()
+
+    with pytest.raises(FileNotFoundError):
+        package_styles(
+            project_root=project_root,
+            styles_path=Path("styles"),
+            output_dir=Path("dist"),
+            version="1.0.0",
+            explicit_styles=None,
+            vocabulary=None,
+            target_glob="*.md",
+            force=False,
+        )
+
+
+def test_package_styles_omits_vocab_when_multiple_present(
+    sample_project: Path,
+) -> None:
+    """Do not guess when more than one vocabulary directory exists."""
+    vocab_root = sample_project / "styles" / "config" / "vocabularies"
+    extra_vocab = vocab_root / "alt"
+    extra_vocab.mkdir(parents=True, exist_ok=True)
+    (extra_vocab / "accept.txt").write_text("alt\n", encoding="utf-8")
+
+    archive_path = package_styles(
+        project_root=sample_project,
+        styles_path=Path("styles"),
+        output_dir=Path("dist"),
+        version="1.2.3",
+        explicit_styles=None,
+        vocabulary=None,
+        target_glob="*.{md,txt}",
+        force=False,
+    )
+
+    with ZipFile(archive_path) as archive:
+        ini_body = archive.read(".vale.ini").decode("utf-8")
+    assert "Vocab =" not in ini_body
+
+
+def test_package_styles_respects_ini_styles_path(sample_project: Path) -> None:
+    """Use the configured StylesPath entry inside the archive."""
+    archive_path = package_styles(
+        project_root=sample_project,
+        styles_path=Path("styles"),
+        output_dir=Path("dist"),
+        version="1.2.3",
+        explicit_styles=None,
+        vocabulary=None,
+        target_glob="*.{md,txt}",
+        ini_styles_path="custom_styles",
+        force=True,
+    )
+
+    with ZipFile(archive_path) as archive:
+        names = archive.namelist()
+        assert any(name.startswith("custom_styles/concordat/") for name in names)
+        ini_body = archive.read(".vale.ini").decode("utf-8")
+    assert "StylesPath = custom_styles" in ini_body

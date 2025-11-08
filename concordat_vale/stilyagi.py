@@ -28,9 +28,15 @@ app.help = "Utilities for packaging and distributing Vale styles."
 app.config = cyclopts.config.Env(ENV_PREFIX, command=False)
 
 
-def _split_comma_env(value: str) -> list[str]:
-    """Split a comma-separated environment variable into cleaned tokens."""
-    return [token.strip() for token in value.split(",") if token.strip()]
+def _split_comma_env(
+    _hint: object,
+    value: str,
+    *,
+    delimiter: str | None = ",",
+) -> list[str]:
+    """Split a delimiter-separated environment variable into cleaned tokens."""
+    sep = delimiter or ","
+    return [token.strip() for token in value.split(sep) if token.strip()]
 
 
 def _resolve_project_path(root: Path, candidate: Path) -> Path:
@@ -58,8 +64,7 @@ def _resolve_version(root: Path, override: str | None) -> str:
     if override:
         return override
 
-    pyproject_version = _read_pyproject_version(root)
-    if pyproject_version:
+    if pyproject_version := _read_pyproject_version(root):
         return pyproject_version
 
     try:
@@ -96,20 +101,18 @@ def _select_vocabulary(styles_root: Path, override: str | None) -> str | None:
         return None
 
     names = sorted(entry.name for entry in vocab_root.iterdir() if entry.is_dir())
-    if len(names) == 1:
-        return names[0]
-
-    return None
+    return names[0] if len(names) == 1 else None
 
 
 def _build_ini(
+    styles_path_entry: str,
     styles: list[str],
     target_glob: str,
     vocabulary: str | None,
 ) -> str:
     based_on = ", ".join(styles)
     body = [
-        "StylesPath = styles",
+        f"StylesPath = {styles_path_entry}",
         "",
         f"[{target_glob}]",
         f"BasedOnStyles = {based_on}",
@@ -120,11 +123,19 @@ def _build_ini(
     return "\n".join(body)
 
 
-def _add_styles_to_archive(zip_file: ZipFile, styles_root: Path) -> None:
+def _add_styles_to_archive(
+    zip_file: ZipFile,
+    styles_root: Path,
+    archive_root: Path,
+) -> None:
+    if archive_root.is_absolute():
+        msg = "StylesPath inside the archive must be a relative directory"
+        raise ValueError(msg)
+
     for path in sorted(styles_root.rglob("*")):
         if path.is_dir():
             continue
-        archive_path = Path("styles") / path.relative_to(styles_root)
+        archive_path = archive_root / path.relative_to(styles_root)
         zip_file.write(path, arcname=str(archive_path))
 
 
@@ -137,6 +148,7 @@ def package_styles(
     explicit_styles: list[str] | None,
     vocabulary: str | None,
     target_glob: str,
+    ini_styles_path: str = "styles",
     force: bool,
 ) -> Path:
     """Create a Vale-ready ZIP archive containing styles and config."""
@@ -148,7 +160,7 @@ def package_styles(
 
     styles = _discover_style_names(resolved_styles, explicit_styles)
     vocab = _select_vocabulary(resolved_styles, vocabulary)
-    ini_contents = _build_ini(styles, target_glob, vocab)
+    ini_contents = _build_ini(ini_styles_path, styles, target_glob, vocab)
 
     resolved_output = _resolve_project_path(resolved_root, output_dir)
     resolved_output.mkdir(parents=True, exist_ok=True)
@@ -158,9 +170,10 @@ def package_styles(
         msg = f"Archive {archive_path} already exists; rerun with --force to overwrite"
         raise FileExistsError(msg)
 
+    archive_root = Path(ini_styles_path)
     with ZipFile(archive_path, mode="w", compression=ZIP_DEFLATED) as archive:
         archive.writestr(".vale.ini", ini_contents)
-        _add_styles_to_archive(archive, resolved_styles)
+        _add_styles_to_archive(archive, resolved_styles, archive_root)
 
     return archive_path
 
@@ -191,6 +204,13 @@ def zip_command(
     target_glob: typ.Annotated[
         str, Parameter(help="Vale file glob inside .vale.ini, without brackets.")
     ] = DEFAULT_TARGET_GLOB,
+    ini_styles_path: typ.Annotated[
+        str,
+        Parameter(
+            help="Directory name recorded in StylesPath inside the archive.",
+            env_var="STILYAGI_INI_STYLES_PATH",
+        ),
+    ] = "styles",
     archive_version: typ.Annotated[
         str | None,
         Parameter(
@@ -211,6 +231,7 @@ def zip_command(
         explicit_styles=style,
         vocabulary=vocabulary,
         target_glob=target_glob,
+        ini_styles_path=ini_styles_path,
         force=force,
     )
     print(archive_path)

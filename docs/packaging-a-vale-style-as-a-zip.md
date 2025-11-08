@@ -1,14 +1,13 @@
 # Packaging a Vale style as a ZIP (with Tengo scripts & vocabulary)
 
-This guide shows how to ship a Vale v3 style as a single distributable ZIP that
-includes:
+This guide describes shipping a Vale v3 style as a single distributable ZIP
+that includes:
 
 - one or more styles (YAML rules);
 - Tengo scripts for custom rules and/or fix-suggestion actions;
 - vocabulary lists (accept/reject) and optional Hunspell dictionaries.
 
-It also covers how a consumer references the package via `Packages` +
-`vale sync`.
+It also covers referencing the package via `Packages` + `vale sync`.
 
 ______________________________________________________________________
 

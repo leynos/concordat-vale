@@ -28,6 +28,10 @@
   added later. When omitted, discovery keeps the tool zero-config for the
   single `concordat` style that exists today.
 - `--output-dir` defaults to `dist` so artefacts do not clutter the repo root.
+- `--ini-styles-path` defaults to `styles` and sets both the `StylesPath`
+  entry inside `.vale.ini` and the directory name used for archived files. This
+  keeps the exported structure aligned with consumer expectations while still
+  permitting alternative layouts.
 - `--archive-version` overrides the archive suffix. When omitted the tool reads
   the `project.version` from `pyproject.toml`, then falls back to the installed
   distribution metadata, and finally to `0.0.0+unknown`. This keeps ad-hoc runs
@@ -43,11 +47,11 @@
 
 ## Generated `.vale.ini`
 
-- Always pins `StylesPath = styles` so the package structure matches the
-  guidance in `docs/packaging-a-vale-style-as-a-zip.md` even if the on-disk
-  source directory differs.
+- Defaults to `StylesPath = styles`, but honours the CLI/environment override
+  so packages can opt into custom directory names without post-processing.
 - Injects `BasedOnStyles` using the discovered style directory names so the
-  value remains consistent with Vale's casing rules.
+  value remains consistent with Vale's casing rules or any explicit `--style`
+  values coming from `STILYAGI_STYLE`.
 - Records `Vocab = <name>` only when a vocabulary is chosen so consumers are not
   forced to create placeholder directories.
 
@@ -63,10 +67,10 @@
 ## Testing strategy
 
 - Unit tests exercise `package_styles` directly to verify `.vale.ini`
-  generation, vocabulary selection, and the refusal to overwrite artefacts
-  without `--force`.
+  generation, vocabulary selection, rejection of missing directories, and both
+  overwrite paths (`--force` and refusal without it).
 - Behavioural tests (`pytest-bdd`) exercise the CLI end-to-end by running
   `python -m concordat_vale.stilyagi zip` against a staged copy of the real
-  `styles/` tree. The scenario asserts that the archive contains both the rules
-  and configuration assets and that the generated `.vale.ini` references the
-  `concordat` style.
+  `styles/` tree. Scenarios now cover successful packaging plus environment
+  overrides, and direct subprocess tests validate error reporting and exit
+  codes.
