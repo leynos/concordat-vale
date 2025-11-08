@@ -195,7 +195,7 @@ A quick project-local smoke test:
 printf 'THISNeedsFixing\n' | vale --ext=.txt -
 ```
 
-Expect the `CamelToSnake.yml` message and a suggested fix.
+The `CamelToSnake.yml` message and a suggested fix should be emitted.
 
 ______________________________________________________________________
 
