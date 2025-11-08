@@ -52,7 +52,7 @@
 - Injects `BasedOnStyles` using the discovered style directory names, so the
   value remains consistent with Vale's casing rules or any explicit `--style`
   values coming from `STILYAGI_STYLE`.
-- Records `Vocab = <name>` only when a vocabulary is chosen so consumers are not
+- Records `Vocab = <name>` only when a vocabulary is chosen, so consumers are not
   forced to create placeholder directories.
 
 ## Archive layout & naming
