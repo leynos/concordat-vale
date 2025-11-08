@@ -75,7 +75,13 @@ def _resolve_version(root: Path, override: str | None) -> str:
 
 def _discover_style_names(styles_root: Path, explicit: list[str] | None) -> list[str]:
     if explicit:
-        return sorted(dict.fromkeys(explicit))
+        unique = sorted(dict.fromkeys(explicit))
+        missing = [name for name in unique if not (styles_root / name).is_dir()]
+        if missing:
+            missing_list = ", ".join(missing)
+            msg = f"Styles not found under {styles_root}: {missing_list}"
+            raise FileNotFoundError(msg)
+        return unique
 
     discovered: list[str] = []
     for entry in sorted(styles_root.iterdir()):
@@ -127,16 +133,23 @@ def _add_styles_to_archive(
     zip_file: ZipFile,
     styles_root: Path,
     archive_root: Path,
+    styles: list[str],
 ) -> None:
     if archive_root.is_absolute():
         msg = "StylesPath inside the archive must be a relative directory"
         raise ValueError(msg)
 
-    for path in sorted(styles_root.rglob("*")):
-        if path.is_dir():
-            continue
-        archive_path = archive_root / path.relative_to(styles_root)
-        zip_file.write(path, arcname=str(archive_path))
+    include_dirs = [styles_root / name for name in styles]
+    config_dir = styles_root / "config"
+    if config_dir.exists():
+        include_dirs.append(config_dir)
+
+    for directory in include_dirs:
+        for path in sorted(directory.rglob("*")):
+            if path.is_dir():
+                continue
+            archive_path = archive_root / path.relative_to(styles_root)
+            zip_file.write(path, arcname=str(archive_path))
 
 
 def package_styles(
@@ -173,7 +186,12 @@ def package_styles(
     archive_root = Path(ini_styles_path)
     with ZipFile(archive_path, mode="w", compression=ZIP_DEFLATED) as archive:
         archive.writestr(".vale.ini", ini_contents)
-        _add_styles_to_archive(archive, resolved_styles, archive_root)
+        _add_styles_to_archive(
+            archive,
+            resolved_styles,
+            archive_root,
+            styles,
+        )
 
     return archive_path
 
