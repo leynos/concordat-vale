@@ -184,7 +184,7 @@ ______________________________________________________________________
 
 After `vale sync`, confirm the resources are visible:
 
-- Your rules appear under the configured style name (`MyStyle`).
+- Packaged rules appear under the configured style name (`MyStyle`).
 - A rule that references `MyScript.tengo` triggers as expected on sample text.
 - A token in `reject.txt` raises an alert; a token in `accept.txt` is ignored
   by the packaged spelling/term rules.
