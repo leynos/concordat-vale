@@ -47,7 +47,7 @@
 
 ## Generated `.vale.ini`
 
-- Defaults to `StylesPath = styles`, but honours the CLI/environment override
+- Defaults to `StylesPath = styles`, but honours the CLI/environment override,
   so packages can opt into custom directory names without post-processing.
 - Injects `BasedOnStyles` using the discovered style directory names, so the
   value remains consistent with Vale's casing rules or any explicit `--style`
