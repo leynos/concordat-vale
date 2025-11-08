@@ -6,7 +6,12 @@ readme = "README.md"
 requires-python = ">=3.13"
 license = { text = "ISC" }
 authors = [{ name = "Payton McIntosh", email = "pmcintosh@df12.net" }]
-dependencies = []
+dependencies = [
+    "cyclopts>=2.9",
+]
+
+[project.scripts]
+stilyagi = "concordat_vale.stilyagi:main"
 
 [dependency-groups]
 dev = [
