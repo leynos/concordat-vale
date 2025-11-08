@@ -12,7 +12,7 @@
 1. `make build` (installs dependencies when needed).
 2. `uv run stilyagi zip`
 3. Retrieve the archive from `dist/concordat-<version>.zip` and attach it to
-   the release being prepared.
+   the release currently being prepared.
 
 Running the command without flags auto-discovers available styles and the sole
 vocabulary (`concordat`). The `.vale.ini` header matches `[*.{md,adoc,txt}]` to
