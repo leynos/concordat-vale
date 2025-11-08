@@ -32,7 +32,7 @@
   entry inside `.vale.ini` and the directory name used for archived files. This
   keeps the exported structure aligned with consumer expectations while still
   permitting alternative layouts.
-- `--archive-version` overrides the archive suffix. When omitted the tool reads
+- `--archive-version` overrides the archive suffix. When omitted, the tool reads
   the `project.version` from `pyproject.toml`, then falls back to the installed
   distribution metadata, and finally to `0.0.0+unknown`. This keeps ad-hoc runs
   reproducible while surfacing the configured release version under normal use.
