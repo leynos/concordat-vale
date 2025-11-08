@@ -72,5 +72,7 @@
 - Behavioural tests (`pytest-bdd`) exercise the CLI end-to-end by running
   `python -m concordat_vale.stilyagi zip` against a staged copy of the real
   `styles/` tree. Scenarios now cover successful packaging plus environment
-  overrides, and direct subprocess tests validate error reporting and exit
+  overrides, and they assert that the archive contains both the rules and
+  configuration assets, and that the generated `.vale.ini` references the
+  `concordat` style. Direct subprocess tests validate error reporting and exit
   codes.
