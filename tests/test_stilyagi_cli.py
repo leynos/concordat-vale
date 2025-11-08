@@ -49,8 +49,12 @@ def staged_project(tmp_path: Path) -> Path:
 def test_cli_errors_when_styles_directory_missing(tmp_path: Path) -> None:
     """Fail with a helpful message when the styles directory is absent."""
     result = _invoke_cli("--project-root", str(tmp_path))
-    assert result.returncode != 0
-    assert "does not exist" in result.stderr
+    assert result.returncode != 0, (
+        f"Expected non-zero exit when styles directory is missing: {result.stderr}"
+    )
+    assert "does not exist" in result.stderr, (
+        "Missing-styles error message should mention 'does not exist'"
+    )
 
 
 def test_cli_refuses_to_overwrite_without_force(staged_project: Path) -> None:
@@ -62,8 +66,14 @@ def test_cli_refuses_to_overwrite_without_force(staged_project: Path) -> None:
         "7.7.7",
     ]
     first = _invoke_cli(*base_args)
-    assert first.returncode == 0, first.stderr
+    assert first.returncode == 0, (
+        f"Initial packaging should succeed: {first.stderr or first.stdout}"
+    )
 
     second = _invoke_cli(*base_args)
-    assert second.returncode != 0
-    assert "already exists" in second.stderr
+    assert second.returncode != 0, (
+        f"Second packaging should fail without --force: {second.stderr or second.stdout}"
+    )
+    assert "already exists" in second.stderr, (
+        f"Expected overwrite warning in stderr: {second.stderr}"
+    )
