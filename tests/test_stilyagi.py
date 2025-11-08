@@ -55,14 +55,20 @@ def test_package_styles_builds_archive_with_ini_and_files(sample_project: Path) 
         force=False,
     )
 
-    assert archive_path.exists()
+    assert archive_path.exists(), f"Archive not created at {archive_path}"
     with ZipFile(archive_path) as archive:
         namelist = set(archive.namelist())
-        assert ".vale.ini" in namelist
-        assert "styles/concordat/Rule.yml" in namelist
+        assert ".vale.ini" in namelist, "Missing .vale.ini in archive"
+        assert (
+            "styles/concordat/Rule.yml" in namelist
+        ), "Missing styles/concordat/Rule.yml in archive"
         ini_body = archive.read(".vale.ini").decode("utf-8")
-        assert "BasedOnStyles = concordat" in ini_body
-        assert "Vocab = concordat" in ini_body
+        assert (
+            "BasedOnStyles = concordat" in ini_body
+        ), "Expected 'BasedOnStyles = concordat' in .vale.ini"
+        assert (
+            "Vocab = concordat" in ini_body
+        ), "Expected 'Vocab = concordat' in .vale.ini"
 
 
 def test_package_styles_refuses_to_overwrite_without_force(
