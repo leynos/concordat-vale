@@ -12,7 +12,7 @@
 
 - `stilyagi` is exposed via `pyproject.toml` as an entry point that calls
   `concordat_vale.stilyagi:main`.
-- Cyclopts drives the CLI with an `STILYAGI_` environment prefix so every flag
+- Cyclopts drives the CLI with an `STILYAGI_` environment prefix, so every flag
   can also be injected via CI inputs.
 - The `zip` sub-command is focused on packaging. Other automation should be
   added as additional sub-commands rather than new binaries.
