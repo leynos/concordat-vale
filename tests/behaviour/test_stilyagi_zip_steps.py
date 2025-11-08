@@ -119,11 +119,13 @@ def archive_exists(scenario_state: ScenarioState) -> None:
 def archive_has_content(scenario_state: ScenarioState) -> None:
     """Verify that the archive captured both rules and shared config assets."""
     archive_path = scenario_state["archive_path"]
+    style_name = scenario_state.get("expected_style_name", "concordat")
+    expected_rule = f"{style_name}/OxfordComma.yml"
     with ZipFile(archive_path) as archive:
         names = set(archive.namelist())
         assert any(
-            name.endswith("concordat/OxfordComma.yml") for name in names
-        ), "Archive missing concordat rules"
+            name.endswith(expected_rule) for name in names
+        ), f"Archive missing {expected_rule}"
         assert any("/config/" in name for name in names), "Archive missing shared config"
 
 
@@ -131,13 +133,15 @@ def archive_has_content(scenario_state: ScenarioState) -> None:
 def archive_has_ini(scenario_state: ScenarioState) -> None:
     """Ensure the generated .vale.ini points at the concordat style list."""
     archive_path = scenario_state["archive_path"]
+    expected_styles_path = scenario_state.get("expected_styles_path", "styles")
+    expected_style = scenario_state.get("expected_style_name", "concordat")
     with ZipFile(archive_path) as archive:
         ini_body = archive.read(".vale.ini").decode("utf-8")
-    assert "StylesPath = styles" in ini_body, (
-        "Generated ini should point StylesPath at styles/"
+    assert f"StylesPath = {expected_styles_path}" in ini_body, (
+        f"Generated ini should point StylesPath at {expected_styles_path}/"
     )
-    assert "BasedOnStyles = concordat" in ini_body, (
-        "Generated ini should enable the concordat style"
+    assert f"BasedOnStyles = {expected_style}" in ini_body, (
+        f"Generated ini should enable the {expected_style} style"
     )
 
 
@@ -152,9 +156,15 @@ def archive_ini_uses_env_overrides(scenario_state: ScenarioState) -> None:
     with ZipFile(archive_path) as archive:
         ini_body = archive.read(".vale.ini").decode("utf-8")
 
-    assert f"StylesPath = {expected_styles_path}" in ini_body
-    assert f"BasedOnStyles = {expected_style}" in ini_body
-    assert f"[{expected_glob}]" in ini_body
+    assert f"StylesPath = {expected_styles_path}" in ini_body, (
+        f"Expected StylesPath {expected_styles_path}, got {ini_body!r}"
+    )
+    assert f"BasedOnStyles = {expected_style}" in ini_body, (
+        f"Expected BasedOnStyles {expected_style}, got {ini_body!r}"
+    )
+    assert f"[{expected_glob}]" in ini_body, (
+        f"Expected target glob [{expected_glob}], got {ini_body!r}"
+    )
 
 
 @pytest.mark.parametrize(
