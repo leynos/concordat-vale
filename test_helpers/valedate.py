@@ -158,7 +158,7 @@ def _which_vale(vale_bin: str) -> str:
 
 def _vale_supports_stdin_flag(vale_bin: str) -> bool:
     """Return True if the Vale binary understands the --stdin flag."""
-    probe = subprocess.run(  # noqa: S603  # TODO(concordat-vale): FIXME capability probe using trusted Vale binary (https://vale.sh/docs/cli)
+    probe = subprocess.run(  # noqa: S603 FIXME: capability probe using trusted Vale binary (https://vale.sh/docs/cli)
         [vale_bin, "--help"],
         capture_output=True,
         check=False,
