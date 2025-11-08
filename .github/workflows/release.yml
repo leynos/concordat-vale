@@ -43,7 +43,7 @@ jobs:
           set -euo pipefail
           if [[ "${GITHUB_EVENT_NAME}" == "release" ]]; then
             release_tag="$(
-              jq -r '.release.tag_name' \"$GITHUB_EVENT_PATH\"
+              jq -r '.release.tag_name' "$GITHUB_EVENT_PATH"
             )"
           else
             release_tag="${DISPATCH_TAG:-}"
