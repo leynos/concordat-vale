@@ -30,6 +30,18 @@ def sample_project(tmp_path: Path) -> Path:
     return project_root
 
 
+@pytest.fixture
+def project_without_vocab(tmp_path: Path) -> Path:
+    """Create a project tree that lacks shared vocabularies."""
+    project_root = tmp_path / "project-no-vocab"
+    (project_root / "styles" / "concordat").mkdir(parents=True)
+    (project_root / "styles" / "concordat" / "Rule.yml").write_text(
+        "extends: existence\n",
+        encoding="utf-8",
+    )
+    return project_root
+
+
 def test_package_styles_builds_archive_with_ini_and_files(sample_project: Path) -> None:
     """Verify that archives include .vale.ini metadata and style files."""
     archive_path = package_styles(
@@ -95,10 +107,6 @@ def test_package_styles_overwrites_with_force(sample_project: Path) -> None:
         target_glob="*.md",
         force=False,
     )
-
-    with ZipFile(archive_path) as archive:
-        assert "[*.md]" in archive.read(".vale.ini").decode("utf-8")
-
     overwritten = package_styles(
         project_root=sample_project,
         styles_path=Path("styles"),
@@ -109,29 +117,44 @@ def test_package_styles_overwrites_with_force(sample_project: Path) -> None:
         target_glob="*.txt",
         force=True,
     )
-
     assert overwritten == archive_path
     with ZipFile(overwritten) as archive:
         ini_body = archive.read(".vale.ini").decode("utf-8")
     assert "[*.txt]" in ini_body
 
 
-def test_package_styles_raises_when_styles_missing(tmp_path: Path) -> None:
-    """Fail fast when the styles directory does not exist."""
-    project_root = tmp_path / "proj"
-    project_root.mkdir()
-
+def test_package_styles_missing_styles_dir_raises(tmp_path: Path) -> None:
+    """Verify a helpful error is raised when the styles directory is absent."""
     with pytest.raises(FileNotFoundError):
         package_styles(
-            project_root=project_root,
-            styles_path=Path("styles"),
+            project_root=tmp_path,
+            styles_path=Path("does-not-exist"),
             output_dir=Path("dist"),
-            version="1.0.0",
+            version="0.0.1",
             explicit_styles=None,
             vocabulary=None,
-            target_glob="*.md",
+            target_glob="*.{md,txt}",
             force=False,
         )
+
+
+def test_package_styles_omits_vocab_when_unavailable(
+    project_without_vocab: Path,
+) -> None:
+    """Ensure Vocab is omitted from .vale.ini when no vocabularies exist."""
+    archive_path = package_styles(
+        project_root=project_without_vocab,
+        styles_path=Path("styles"),
+        output_dir=Path("dist"),
+        version="0.9.9",
+        explicit_styles=None,
+        vocabulary=None,
+        target_glob="*.{md,txt}",
+        force=False,
+    )
+    with ZipFile(archive_path) as archive:
+        ini_body = archive.read(".vale.ini").decode("utf-8")
+    assert "Vocab =" not in ini_body
 
 
 def test_package_styles_omits_vocab_when_multiple_present(

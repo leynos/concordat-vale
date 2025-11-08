@@ -13,13 +13,13 @@ ______________________________________________________________________
 
 ## 1) Repository layout (before zipping)
 
-Structure your style repository like this:
+Style repositories typically follow this structure:
 
 ```text
 .
 ├─ .vale.ini                  # “complete package” config (points at styles/)
 └─ styles/
-   ├─ MyStyle/                # your style rules (YAML)
+   ├─ MyStyle/                # style rules (YAML)
    │  ├─ 00-Intro.yml
    │  └─ MyRule.yml
    └─ config/                 # shared resources for all styles
@@ -65,7 +65,8 @@ Place `MyScript.tengo` in `styles/config/scripts/`.
 
 ### (b) A rule with a Tengo suggestion action (fixer)
 
-Use this when the rule itself is regex-driven, but you want dynamic suggestions:
+This pattern applies when the rule itself is regex-driven but dynamic
+suggestions are required:
 
 ```yaml
 # styles/MyStyle/CamelToSnake.yml
@@ -102,8 +103,8 @@ styles/config/vocabularies/myvocab/reject.txt
 - **`reject.txt`**: words/terms to *discourage* (raise alerts if seen).
 
 Lines are one token per line; keep them canonical (e.g., “microservice”,
-“WebSocket”), and prefer the singular base form unless you need inflected
-variants.
+“WebSocket”), and prefer the singular base form unless inflected variants are
+required.
 
 To use this vocab in the package’s own config (see §4), set `Vocab = myvocab`.
 Consumers can keep that or override with their own.
@@ -113,7 +114,7 @@ ______________________________________________________________________
 ## 4) The package’s `.vale.ini`
 
 Include a minimal config at the root of the ZIP that points at `styles/` and
-enables your style (and vocab):
+enables the packaged style (and vocab):
 
 ```ini
 # .vale.ini (inside the ZIP)
@@ -140,8 +141,7 @@ zip -r MyStyle-1.2.3.zip .vale.ini styles/
 Attach `MyStyle-1.2.3.zip` to a GitHub Release (or host it anywhere with a
 stable URL).
 
-Version your ZIPs (e.g., SemVer) so consumers can pin or upgrade
-deterministically.
+Version ZIPs (e.g., SemVer) so consumers can pin or upgrade deterministically.
 
 ______________________________________________________________________
 
@@ -155,8 +155,8 @@ In the **consuming** repository:
 # Consumer project
 StylesPath = .github/styles
 
-# Point to your release asset; multiple packages allowed (order = precedence)
-Packages = https://github.com/you/your-style/releases/download/v1.2.3/MyStyle-1.2.3.zip
+# Point to the release asset; multiple packages allowed (order = precedence)
+Packages = https://github.com/example/vale-style/releases/download/v1.2.3/MyStyle-1.2.3.zip
 
 # Optionally extend/override the package defaults:
 [*.{md,adoc,txt}]
@@ -175,7 +175,7 @@ Notes:
 
 - If multiple packages are listed, later entries take precedence when files
   collide.
-- Consumers can override anything in your package by adding files under their
+- Consumers can override any packaged file by adding replacements under their
   local `StylesPath`.
 
 ______________________________________________________________________
@@ -187,7 +187,7 @@ After `vale sync`, confirm the resources are visible:
 - Your rules appear under the configured style name (`MyStyle`).
 - A rule that references `MyScript.tengo` triggers as expected on sample text.
 - A token in `reject.txt` raises an alert; a token in `accept.txt` is ignored
-  by your spelling/term rules.
+  by the packaged spelling/term rules.
 
 A quick project-local smoke test:
 
@@ -195,16 +195,16 @@ A quick project-local smoke test:
 printf 'THISNeedsFixing\n' | vale --ext=.txt -
 ```
 
-Expect your `CamelToSnake.yml` message and a suggested fix.
+Expect the `CamelToSnake.yml` message and a suggested fix.
 
 ______________________________________________________________________
 
 ## 8) Private distribution & alternatives (optional)
 
-- **Vendoring via Git**: instead of `Packages`, consumers can vendor your repo
+- **Vendoring via Git**: instead of `Packages`, consumers can vendor the repo
   (or a release) into their tree (e.g., as a submodule) and set `StylesPath`
   accordingly. This avoids external fetches but shifts updates to Git ops.
-- **Multiple styles per ZIP**: you can ship several style folders under
+- **Multiple styles per ZIP**: several style folders can reside under
   `styles/` and reference them all from `.vale.ini`.
 
 ______________________________________________________________________
@@ -216,7 +216,8 @@ ______________________________________________________________________
 - [ ] All suggestion/fixer Tengo in `styles/config/actions/`
 - [ ] Vocab in `styles/config/vocabularies/<name>/(accept|reject).txt`
 - [ ] Optional Hunspell in `styles/config/dictionaries/`
-- [ ] Root `.vale.ini` points `StylesPath = styles` and enables your style/vocab
+- [ ] Root `.vale.ini` points `StylesPath = styles` and enables the packaged
+      style/vocab
 - [ ] Versioned ZIP built from `.vale.ini` + `styles/`
 - [ ] Release asset URL stable and documented for consumers
 

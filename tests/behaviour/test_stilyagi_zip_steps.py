@@ -102,9 +102,9 @@ def run_stilyagi_zip(repo_root: Path, scenario_state: ScenarioState) -> None:
     scenario_state["stdout"] = stdout_lines[-1] if stdout_lines else ""
 
     produced_archives = sorted((dist_dir).glob("*.zip"))
-    assert (
-        produced_archives
-    ), f"stilyagi zip did not create an archive in {dist_dir}:\n{result.stderr}"
+    assert produced_archives, (
+        f"stilyagi zip did not create an archive in {dist_dir}:\n{result.stderr}"
+    )
     scenario_state["archive_path"] = produced_archives[-1]
 
 
