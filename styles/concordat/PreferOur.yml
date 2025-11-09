@@ -3,7 +3,7 @@ message: "Use British '-our' spelling: '%[2]s' → '%[1]s'."
 link: "House style: -our in colour, behaviour, neighbour."
 level: error
 ignorecase: true
-nonword: true
+nonword: false
 swap:
   color: colour
   colors: colours
