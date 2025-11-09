@@ -54,7 +54,18 @@ def test_no_ly_adverb_hyphen_flags_hyphenated_adverbs(
 def test_no_ly_adverb_hyphen_allows_spaced_pairs(
     concordat_vale: Valedate,
 ) -> None:
-    """Correctly spaced -ly adverb + adjective pairs must pass."""
+    """Verify spaced adverb-adjective pairs pass the Vale rule.
+
+    Parameters
+    ----------
+    concordat_vale : Valedate
+        Vale sandbox configured with the Concordat styles.
+
+    Returns
+    -------
+    None
+        The assertions confirm that correctly spaced phrases raise no alerts.
+    """
     text = "The cluster stays highly available and clearly documented."
 
     diags = concordat_vale.lint(text)
@@ -65,7 +76,18 @@ def test_no_ly_adverb_hyphen_allows_spaced_pairs(
 def test_no_ly_adverb_hyphen_honors_documented_exceptions(
     concordat_vale: Valedate,
 ) -> None:
-    """Whitelist entries such as early- and friendly- should be ignored."""
+    """Ensure documented exceptions are not flagged by NoLyAdverbHyphen.
+
+    Parameters
+    ----------
+    concordat_vale : Valedate
+        Vale sandbox configured with the Concordat styles.
+
+    Returns
+    -------
+    None
+        The assertions verify that whitelisted prefixes bypass diagnostics.
+    """
     text = "Launch the early-access beta to a family-friendly cohort."
 
     diags = concordat_vale.lint(text)
@@ -76,7 +98,18 @@ def test_no_ly_adverb_hyphen_honors_documented_exceptions(
 def test_no_ly_adverb_hyphen_reports_each_violation_in_files(
     concordat_vale: Valedate,
 ) -> None:
-    """lint_path should capture every hyphenated adverb in a document."""
+    """Confirm file-based linting reports every hyphenated adverb instance.
+
+    Parameters
+    ----------
+    concordat_vale : Valedate
+        Vale sandbox configured with the Concordat styles.
+
+    Returns
+    -------
+    None
+        The assertions ensure both diagnostics surface via ``lint_path``.
+    """
     doc_path = concordat_vale.root / "availability.md"
     doc_path.write_text(
         textwrap.dedent(
@@ -103,7 +136,18 @@ def test_no_ly_adverb_hyphen_reports_each_violation_in_files(
 def test_no_ly_adverb_hyphen_avoids_false_positive_on_non_adverbs(
     concordat_vale: Valedate,
 ) -> None:
-    """Words that merely end in '-ly' but are nouns should not be flagged."""
+    """Check that non-adverb '-ly' words do not trigger false positives.
+
+    Parameters
+    ----------
+    concordat_vale : Valedate
+        Vale sandbox configured with the Concordat styles.
+
+    Returns
+    -------
+    None
+        The assertions confirm nouns ending in '-ly' are ignored.
+    """
     text = "Supply-chain metrics differ from belly-up failure modes."
 
     diags = concordat_vale.lint(text)
@@ -114,7 +158,18 @@ def test_no_ly_adverb_hyphen_avoids_false_positive_on_non_adverbs(
 def test_no_ly_adverb_hyphen_handles_capitalised_and_punctuated_matches(
     concordat_vale: Valedate,
 ) -> None:
-    """Case-insensitive matches followed by punctuation must still alert."""
+    """Validate capitalised or punctuated hyphenations still alert.
+
+    Parameters
+    ----------
+    concordat_vale : Valedate
+        Vale sandbox configured with the Concordat styles.
+
+    Returns
+    -------
+    None
+        The assertions ensure each capitalised, punctuated match is reported.
+    """
     text = "Deploy a Highly-Available, Publicly-Accessible endpoint."
 
     diags = concordat_vale.lint(text)
