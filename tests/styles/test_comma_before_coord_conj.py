@@ -1,4 +1,17 @@
-"""Regression tests for the CommaBeforeCoordConj Vale rule."""
+"""Validate the CommaBeforeCoordConj Vale rule.
+
+These regression tests ensure Vale warns when the style detects two
+independent clauses joined by ``nor``, ``but``, ``yet``, or ``so`` without an
+intervening comma, while allowing constructions that share a subject, use
+"so that" purpose clauses, or already include the punctuation. The suite mixes
+positive matches, negative controls, and tricky bridge-word examples so the
+regex heuristics remain stable across prose formats.
+
+Run with ``pytest tests/styles/test_comma_before_coord_conj.py`` (or
+``pytest -m styles`` if grouped) to lint synthetic paragraphs via the
+``Valedate`` helper; a passing run reports six successful tests and zero
+failures, confirming the rule catches true errors without false positives.
+"""
 
 from __future__ import annotations
 
