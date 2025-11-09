@@ -1,0 +1,105 @@
+"""Regression tests for the NoLyAdverbHyphen Vale rule."""
+
+from __future__ import annotations
+
+import textwrap
+import typing as typ
+
+if typ.TYPE_CHECKING:
+    from test_helpers.valedate import Valedate
+
+
+def test_no_ly_adverb_hyphen_flags_hyphenated_adverbs(
+    concordat_vale: Valedate,
+) -> None:
+    """Hyphenated -ly adverbs should raise diagnostics."""
+    text = "Ensure the service remains highly-available during failover."
+
+    diags = concordat_vale.lint(text)
+
+    assert len(diags) == 1, "expected exactly one diagnostic per hyphenated adverb"
+    diag = diags[0]
+    assert diag.check == "concordat.NoLyAdverbHyphen", "unexpected rule triggered"
+    assert diag.severity == "warning", "rule should warn to drop the hyphen"
+    assert diag.line == 1, "issue should be reported on the only line"
+    assert diag.match == "highly-available", (
+        "diagnostic should highlight the hyphenated term"
+    )
+    assert diag.message.startswith("Don\u2019t hyphenate an -ly adverb + adjective"), (
+        "unexpected diagnostic message"
+    )
+
+
+def test_no_ly_adverb_hyphen_allows_spaced_pairs(
+    concordat_vale: Valedate,
+) -> None:
+    """Correctly spaced -ly adverb + adjective pairs must pass."""
+    text = "The cluster stays highly available and clearly documented."
+
+    diags = concordat_vale.lint(text)
+
+    assert diags == [], "expected no diagnostics without the hyphen"
+
+
+def test_no_ly_adverb_hyphen_honors_documented_exceptions(
+    concordat_vale: Valedate,
+) -> None:
+    """Whitelist entries such as early- and friendly- should be ignored."""
+    text = "Launch the early-access beta to a family-friendly cohort."
+
+    diags = concordat_vale.lint(text)
+
+    assert diags == [], "expected exceptions to bypass the rule"
+
+
+def test_no_ly_adverb_hyphen_reports_each_violation_in_files(
+    concordat_vale: Valedate,
+) -> None:
+    """lint_path should capture every hyphenated adverb in a document."""
+    doc_path = concordat_vale.root / "availability.md"
+    doc_path.write_text(
+        textwrap.dedent(
+            """\
+            Maintain a closely-held secret key.
+
+            Publish a nearly-complete overview before launch.
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    results = concordat_vale.lint_path(doc_path)
+
+    assert str(doc_path) in results, "expected lint_path to return document diagnostics"
+    alerts = results[str(doc_path)]
+    assert len(alerts) == 2, "expected both hyphenated adverbs to be flagged"
+    assert {alert.line for alert in alerts} == {1, 3}, "incorrect lines flagged"
+    assert {alert.check for alert in alerts} == {"concordat.NoLyAdverbHyphen"}, (
+        "unexpected rule triggered in file lint"
+    )
+
+
+def test_no_ly_adverb_hyphen_avoids_false_positive_on_non_adverbs(
+    concordat_vale: Valedate,
+) -> None:
+    """Words that merely end in '-ly' but are nouns should not be flagged."""
+    text = "Supply-chain metrics differ from belly-up failure modes."
+
+    diags = concordat_vale.lint(text)
+
+    assert diags == [], "expected no diagnostics for non-adverb '-ly' prefixes"
+
+
+def test_no_ly_adverb_hyphen_handles_capitalised_and_punctuated_matches(
+    concordat_vale: Valedate,
+) -> None:
+    """Case-insensitive matches followed by punctuation must still alert."""
+    text = "Deploy a Highly-Available, Publicly-Accessible endpoint."
+
+    diags = concordat_vale.lint(text)
+
+    assert len(diags) == 2, "expected each hyphenated adverb to be reported"
+    assert {diag.match for diag in diags} == {
+        "Highly-Available",
+        "Publicly-Accessible",
+    }, "unexpected matches were flagged"
