@@ -86,7 +86,7 @@ def test_no_ly_adverb_hyphen_honors_documented_exceptions(
     Returns
     -------
     None
-        The assertions verify that whitelisted prefixes bypass diagnostics.
+        The assertions verify that allowlisted prefixes bypass diagnostics.
     """
     text = "Launch the early-access beta to a family-friendly cohort."
 
@@ -136,7 +136,7 @@ def test_no_ly_adverb_hyphen_reports_each_violation_in_files(
 def test_no_ly_adverb_hyphen_avoids_false_positive_on_non_adverbs(
     concordat_vale: Valedate,
 ) -> None:
-    """Check that non-adverb '-ly' words do not trigger false positives.
+    """Check that non-adverb '-ly' adjectives do not trigger false positives.
 
     Parameters
     ----------
@@ -146,9 +146,14 @@ def test_no_ly_adverb_hyphen_avoids_false_positive_on_non_adverbs(
     Returns
     -------
     None
-        The assertions confirm nouns ending in '-ly' are ignored.
+        The assertions confirm adjectives ending in '-ly' are ignored.
     """
-    text = "Supply-chain metrics differ from belly-up failure modes."
+    text = textwrap.dedent(
+        """\
+        The curly-haired developer debugged an ugly-looking prototype beside
+        a lonely-planet guide.
+        """
+    )
 
     diags = concordat_vale.lint(text)
 
@@ -158,7 +163,7 @@ def test_no_ly_adverb_hyphen_avoids_false_positive_on_non_adverbs(
 def test_no_ly_adverb_hyphen_handles_capitalised_and_punctuated_matches(
     concordat_vale: Valedate,
 ) -> None:
-    """Validate capitalised or punctuated hyphenations still alert.
+    """Validate capitalized or punctuated hyphenations still alert.
 
     Parameters
     ----------
@@ -168,7 +173,7 @@ def test_no_ly_adverb_hyphen_handles_capitalised_and_punctuated_matches(
     Returns
     -------
     None
-        The assertions ensure each capitalised, punctuated match is reported.
+        The assertions ensure each capitalized, punctuated match is reported.
     """
     text = "Deploy a Highly-Available, Publicly-Accessible endpoint."
 
