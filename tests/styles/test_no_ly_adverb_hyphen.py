@@ -1,4 +1,14 @@
-"""Regression tests for the NoLyAdverbHyphen Vale rule."""
+"""Regression tests for vale rule authored to catch hyphenated -ly adverbs.
+
+These tests cover the NoLyAdverbHyphen Concordat rule, which warns writers
+when an adverb ending in ``-ly`` is incorrectly hyphenated before an adjective
+(for example, ``highly-available``). The suite exercises both linting entry
+points—direct strings and file-based runs—to prove that hyphenated adverbs are
+flagged, documented exceptions and correctly spaced pairs are accepted, and
+false positives such as nouns ending in ``-ly`` remain untouched. Execute
+``make test`` (preferred) or ``pytest tests/styles/test_no_ly_adverb_hyphen.py``
+to run the regression coverage locally.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +22,18 @@ if typ.TYPE_CHECKING:
 def test_no_ly_adverb_hyphen_flags_hyphenated_adverbs(
     concordat_vale: Valedate,
 ) -> None:
-    """Hyphenated -ly adverbs should raise diagnostics."""
+    """Ensure hyphenated -ly adverbs produce NoLyAdverbHyphen diagnostics.
+
+    Parameters
+    ----------
+    concordat_vale : Valedate
+        Vale sandbox configured with the Concordat styles.
+
+    Returns
+    -------
+    None
+        The assertions verify that Vale reports the expected diagnostic fields.
+    """
     text = "Ensure the service remains highly-available during failover."
 
     diags = concordat_vale.lint(text)
