@@ -34,9 +34,9 @@ cover Markdown, AsciiDoc, and text files.
   emitted in the ZIP.
 - `--force` overwrites an existing archive in the output directory.
 - Environment variables with the `STILYAGI_` prefix should be set when running
-  under CI. For example, `STILYAGI_VERSION` mirrors
-  `--archive-version`, `STILYAGI_STYLE` accepts a comma-separated list of style
-  names, and `STILYAGI_INI_STYLES_PATH` mirrors `--ini-styles-path`.
+  under CI. For example, `STILYAGI_VERSION` mirrors `--archive-version`,
+  `STILYAGI_STYLE` accepts a comma-separated list of style names, and
+  `STILYAGI_INI_STYLES_PATH` mirrors `--ini-styles-path`.
 
 ### Verifying the artefact locally
 
