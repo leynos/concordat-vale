@@ -160,7 +160,7 @@ def test_no_ly_adverb_hyphen_avoids_false_positive_on_non_adverbs(
     assert diags == [], "expected no diagnostics for non-adverb '-ly' prefixes"
 
 
-def test_no_ly_adverb_hyphen_handles_capitalised_and_punctuated_matches(
+def test_no_ly_adverb_hyphen_handles_capitalized_and_punctuated_matches(
     concordat_vale: Valedate,
 ) -> None:
     """Validate capitalized or punctuated hyphenations still alert.
