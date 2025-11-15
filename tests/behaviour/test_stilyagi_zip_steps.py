@@ -29,6 +29,11 @@ class ScenarioState(typ.TypedDict, total=False):
 scenarios(str(FEATURE_PATH))
 
 
+def _archive_member(archive_path: Path, relative: str) -> str:
+    """Return the path inside the archive for ``relative``."""
+    return f"{archive_path.stem}/{relative.lstrip('/')}"
+
+
 @pytest.fixture
 def repo_root() -> Path:
     """Return the repository root so the CLI can run via python -m."""
@@ -139,7 +144,9 @@ def archive_has_ini(scenario_state: ScenarioState) -> None:
     expected_styles_path = scenario_state.get("expected_styles_path", "styles")
     expected_style = scenario_state.get("expected_style_name", "concordat")
     with ZipFile(archive_path) as archive:
-        ini_body = archive.read(".vale.ini").decode("utf-8")
+        ini_body = archive.read(_archive_member(archive_path, ".vale.ini")).decode(
+            "utf-8"
+        )
     assert f"StylesPath = {expected_styles_path}" in ini_body, (
         f"Generated ini should point StylesPath at {expected_styles_path}/"
     )
@@ -157,7 +164,9 @@ def archive_ini_uses_env_overrides(scenario_state: ScenarioState) -> None:
     expected_glob = scenario_state["expected_target_glob"]
 
     with ZipFile(archive_path) as archive:
-        ini_body = archive.read(".vale.ini").decode("utf-8")
+        ini_body = archive.read(_archive_member(archive_path, ".vale.ini")).decode(
+            "utf-8"
+        )
 
     assert f"StylesPath = {expected_styles_path}" in ini_body, (
         f"Expected StylesPath {expected_styles_path}, got {ini_body!r}"

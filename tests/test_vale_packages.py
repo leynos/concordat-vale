@@ -1,0 +1,100 @@
+"""Integration tests that ensure packaged archives work with `vale sync`."""
+
+from __future__ import annotations
+
+import http.server
+import os
+import shutil
+import subprocess
+import threading
+import typing as typ
+from functools import partial
+from pathlib import Path
+
+import pytest
+
+from concordat_vale.stilyagi import package_styles
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+VALE_BIN = shutil.which("vale")
+
+
+def _run_vale_sync(env: dict[str, str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    assert VALE_BIN is not None, "vale binary must be available to run this test"
+    return subprocess.run(  # noqa: S603 - repository-controlled command invocation
+        [VALE_BIN, "sync"],
+        cwd=str(cwd),
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
+@pytest.fixture
+def http_server(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> typ.Iterator[tuple[str, Path]]:
+    """Serve files out of a temporary directory for the duration of the test."""
+    serve_dir = tmp_path_factory.mktemp("serve")
+
+    class QuietHandler(http.server.SimpleHTTPRequestHandler):
+        def log_message(self, msg_format: str, *args: object) -> None:
+            return  # suppress noisy stderr logging during tests
+
+    server = http.server.ThreadingHTTPServer(
+        ("127.0.0.1", 0),
+        partial(QuietHandler, directory=str(serve_dir)),
+    )
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}", serve_dir
+    finally:
+        server.shutdown()
+        thread.join()
+
+
+@pytest.mark.slow
+def test_vale_sync_accepts_packaged_archive(
+    tmp_path: Path, http_server: tuple[str, Path]
+) -> None:
+    """Package Concordat, host it over HTTP, and verify `vale sync` downloads it."""
+    if VALE_BIN is None:
+        pytest.skip("vale CLI not installed")
+
+    base_url, serve_dir = http_server
+    version = "sync-test"
+    archive_path = package_styles(
+        project_root=REPO_ROOT,
+        styles_path=Path("styles"),
+        output_dir=tmp_path,
+        version=version,
+        explicit_styles=None,
+        vocabulary=None,
+        target_glob="*.{md,txt}",
+        force=True,
+    )
+    served_archive = serve_dir / archive_path.name
+    shutil.copy2(archive_path, served_archive)
+
+    vale_ini = tmp_path / ".vale.ini"
+    vale_ini.write_text(
+        f"""StylesPath = styles
+Packages = {base_url}/{archive_path.name}
+
+[*.md]
+BasedOnStyles = concordat
+""",
+        encoding="utf-8",
+    )
+
+    env = os.environ.copy()
+    env["VALE_CONFIG_PATH"] = str(vale_ini)
+    vale_home = tmp_path / ".vale-home"
+    env["VALE_HOME"] = str(vale_home)
+
+    result = _run_vale_sync(env, tmp_path)
+    assert result.returncode == 0, (
+        f"vale sync failed:\nSTDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+    )

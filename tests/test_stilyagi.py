@@ -30,6 +30,11 @@ def sample_project(tmp_path: Path) -> Path:
     return project_root
 
 
+def _zip_member(archive_path: Path, relative: str) -> str:
+    """Return the archive member path for *relative* inside *archive_path*."""
+    return f"{archive_path.stem}/{relative.lstrip('/')}"
+
+
 @pytest.fixture
 def project_without_vocab(tmp_path: Path) -> Path:
     """Create a project tree that lacks shared vocabularies."""
@@ -58,11 +63,13 @@ def test_package_styles_builds_archive_with_ini_and_files(sample_project: Path) 
     assert archive_path.exists(), f"Archive not created at {archive_path}"
     with ZipFile(archive_path) as archive:
         namelist = set(archive.namelist())
-        assert ".vale.ini" in namelist, "Missing .vale.ini in archive"
-        assert "styles/concordat/Rule.yml" in namelist, (
+        assert _zip_member(archive_path, ".vale.ini") in namelist, (
+            "Missing .vale.ini in archive"
+        )
+        assert _zip_member(archive_path, "styles/concordat/Rule.yml") in namelist, (
             "Missing styles/concordat/Rule.yml in archive"
         )
-        ini_body = archive.read(".vale.ini").decode("utf-8")
+        ini_body = archive.read(_zip_member(archive_path, ".vale.ini")).decode("utf-8")
         assert "BasedOnStyles = concordat" in ini_body, (
             "Expected 'BasedOnStyles = concordat' in .vale.ini"
         )
@@ -127,7 +134,7 @@ def test_package_styles_overwrites_with_force(sample_project: Path) -> None:
         "Expected overwritten archive path to match the original"
     )
     with ZipFile(overwritten) as archive:
-        ini_body = archive.read(".vale.ini").decode("utf-8")
+        ini_body = archive.read(_zip_member(overwritten, ".vale.ini")).decode("utf-8")
     assert "[*.txt]" in ini_body, "Expected .vale.ini to contain [*.txt]"
 
 
@@ -161,7 +168,7 @@ def test_package_styles_omits_vocab_when_unavailable(
         force=False,
     )
     with ZipFile(archive_path) as archive:
-        ini_body = archive.read(".vale.ini").decode("utf-8")
+        ini_body = archive.read(_zip_member(archive_path, ".vale.ini")).decode("utf-8")
     assert "Vocab =" not in ini_body, "Expected .vale.ini to omit Vocab entries"
 
 
@@ -186,7 +193,7 @@ def test_package_styles_omits_vocab_when_multiple_present(
     )
 
     with ZipFile(archive_path) as archive:
-        ini_body = archive.read(".vale.ini").decode("utf-8")
+        ini_body = archive.read(_zip_member(archive_path, ".vale.ini")).decode("utf-8")
     assert "Vocab =" not in ini_body, (
         "Expected .vale.ini to omit Vocab entries when multiple exist"
     )
@@ -208,10 +215,11 @@ def test_package_styles_respects_ini_styles_path(sample_project: Path) -> None:
 
     with ZipFile(archive_path) as archive:
         names = archive.namelist()
-        assert any(name.startswith("custom_styles/concordat/") for name in names), (
+        expected_prefix = _zip_member(archive_path, "custom_styles/concordat/")
+        assert any(name.startswith(expected_prefix) for name in names), (
             "Expected archive to contain files under custom_styles/concordat/"
         )
-        ini_body = archive.read(".vale.ini").decode("utf-8")
+        ini_body = archive.read(_zip_member(archive_path, ".vale.ini")).decode("utf-8")
     assert "StylesPath = custom_styles" in ini_body, (
         "Expected .vale.ini to contain 'StylesPath = custom_styles'"
     )

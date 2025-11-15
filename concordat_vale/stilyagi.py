@@ -185,9 +185,11 @@ def package_styles(
         msg = f"Archive {archive_path} already exists; rerun with --force to overwrite"
         raise FileExistsError(msg)
 
-    archive_root = Path(ini_styles_path)
+    archive_dir = Path(f"{filename_stem}-{version}")
+    ini_member = archive_dir / ".vale.ini"
+    archive_root = archive_dir / Path(ini_styles_path)
     with ZipFile(archive_path, mode="w", compression=ZIP_DEFLATED) as archive:
-        archive.writestr(".vale.ini", ini_contents)
+        archive.writestr(str(ini_member), ini_contents)
         _add_styles_to_archive(
             archive,
             resolved_styles,
