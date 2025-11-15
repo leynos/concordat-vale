@@ -5,6 +5,8 @@ TOOLS = $(MDFORMAT_ALL) ruff ty $(MDLINT) $(NIXIE) uv
 VENV_TOOLS = pytest
 UV_ENV = UV_CACHE_DIR=.uv-cache UV_TOOL_DIR=.uv-tools
 
+ACT_WORKFLOW_TESTS ?= 0
+
 .PHONY: help all clean build build-release lint fmt check-fmt \
         markdownlint nixie test typecheck $(TOOLS) $(VENV_TOOLS)
 
@@ -77,6 +79,9 @@ nixie: $(NIXIE) ## Validate Mermaid diagrams
 
 test: build uv $(VENV_TOOLS) ## Run tests
 	$(UV_ENV) uv run pytest -v -n auto
+ifeq ($(ACT_WORKFLOW_TESTS),1)
+	$(UV_ENV) uv run pytest tests/workflows/test_release_workflow.py -vv
+endif
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \

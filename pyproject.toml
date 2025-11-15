@@ -91,6 +91,10 @@ convention = "numpy"
 [tool.pytest.ini_options]
 # Tests automatically killed after seconds elapsed
 timeout = 30
+markers = [
+    "act: integration tests that drive GitHub Actions via act",
+    "slow: exercises that take longer or require heavyweight tooling",
+]
 
 [tool.uv]
 package = true

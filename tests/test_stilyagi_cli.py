@@ -78,3 +78,23 @@ def test_cli_refuses_to_overwrite_without_force(staged_project: Path) -> None:
     assert "already exists" in second.stderr, (
         f"Expected overwrite warning in stderr: {second.stderr}"
     )
+
+
+def test_cli_emits_single_archive_path_line(staged_project: Path) -> None:
+    """Emit one newline-terminated archive path on stdout."""
+    version = "9.9.9"
+    result = _invoke_cli(
+        "--project-root",
+        str(staged_project),
+        "--archive-version",
+        version,
+        "--force",
+    )
+    assert result.returncode == 0, (
+        f"Packaging should succeed: {result.stderr or result.stdout}"
+    )
+    non_empty_lines = [line for line in result.stdout.splitlines() if line.strip()]
+    expected_path = staged_project / "dist" / f"concordat-{version}.zip"
+    assert non_empty_lines == [str(expected_path)], (
+        "stdout should contain exactly one archive path line"
+    )

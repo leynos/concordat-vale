@@ -31,7 +31,34 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
 
+      - name: Detect act runtime
+        if: ${{ github.actor == 'nektos/act' }}
+        run: echo "ACT_CONTEXT=true" >> "$GITHUB_ENV"
+
+      - name: Install uv (act fallback)
+        if: ${{ env.ACT_CONTEXT == 'true' }}
+        env:
+          UV_BIN_DIR: ${{ github.workspace }}/.uv-bin
+        run: |
+          set -euo pipefail
+          mkdir -p "${UV_BIN_DIR}"
+          export XDG_BIN_HOME="${UV_BIN_DIR}"
+          curl -LsSf https://astral.sh/uv/install.sh \
+            | sh -s -- --no-modify-path
+          for source_dir in \
+            "${UV_BIN_DIR}" "$HOME/.local/bin" "/root/.local/bin"; do
+            if [[ -x "${source_dir}/uv" && -x "${source_dir}/uvx" ]]; then
+              if [[ "${source_dir}" != "${UV_BIN_DIR}" ]]; then
+                cp "${source_dir}/uv" "${UV_BIN_DIR}/uv"
+                cp "${source_dir}/uvx" "${UV_BIN_DIR}/uvx"
+              fi
+              break
+            fi
+          done
+          echo "${UV_BIN_DIR}" >> "$GITHUB_PATH"
+
       - name: Install uv
+        if: ${{ env.ACT_CONTEXT != 'true' }}
         uses: astral-sh/setup-uv@b49dc9e8821aa6e5df06b85779f66761402a1787
 
       - name: Resolve release metadata
@@ -80,6 +107,7 @@ jobs:
           echo "path=${archive_path}" >> "$GITHUB_OUTPUT"
 
       - name: Upload archive to release
+        if: ${{ env.ACT != 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

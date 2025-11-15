@@ -98,6 +98,8 @@ ipython_config.py
 #   This is especially recommended for binary packages to ensure reproducibility, and is more
 #   commonly ignored for libraries.
 #uv.lock
+.act-cache/
+.uv-bin/
 .uv-cache/
 .uv-tools/
 

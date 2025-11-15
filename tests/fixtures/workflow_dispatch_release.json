@@ -1,0 +1,7 @@
+{
+  "ref": "refs/heads/main",
+  "inputs": {
+    "release_tag": "v0.1.0",
+    "archive_version": "0.1.0"
+  }
+}

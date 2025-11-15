@@ -26,6 +26,8 @@ PACKAGE_NAME = "concordat-vale"
 app = App()
 app.help = "Utilities for packaging and distributing Vale styles."
 app.config = cyclopts.config.Env(ENV_PREFIX, command=False)
+# Disable Cyclopts' auto-print (which wraps long lines) and print manually instead.
+app.result_action = "return_value"
 
 
 def _split_comma_env(
@@ -253,6 +255,7 @@ def zip_command(
         force=force,
     )
     print(archive_path)
+    # Keep returning the string for programmatic callers.
     return str(archive_path)
 
 
