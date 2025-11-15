@@ -43,8 +43,9 @@ cover Markdown, AsciiDoc, and text files.
 1. Regenerate the archive via `uv run stilyagi zip --force`.
 2. Unzip the resulting file and inspect `.vale.ini` to confirm it references the
    expected style list and vocabulary.
-3. Validate the package inside a consumer repository by running
-   `vale sync --packages dist/<archive>.zip`.
+3. Validate the package inside a consumer repository by temporarily
+   pointing `.vale.ini`'s `Packages` entry at `dist/<archive>.zip` (use an
+   absolute path when the consumer lives elsewhere), then run `vale sync`.
 
 ## Release
 
@@ -88,8 +89,9 @@ publishes the resulting ZIP straight to the matching release.
 
 Releases expose a ready-to-sync ZIP that contains `.vale.ini`, the Concordat
 style files, and the supporting vocabulary. Consumers should download the
-artefact from <https://github.com/leynos/concordat-vale/releases>, run
-`vale sync --packages <url>`, then reference the style in their configuration.
+artefact from <https://github.com/leynos/concordat-vale/releases>, record the
+release URL in the consuming repository's `.vale.ini` via `Packages = <url>`,
+run `vale sync`, then reference the style in their configuration.
 
 ### Example `.vale.ini`
 
@@ -103,23 +105,27 @@ BasedOnStyles = Vale, concordat
 ```
 
 This configuration downloads the `v0.1.0` artefact into `styles/` (when
-`vale sync --packages ...` is executed) and enables the Concordat checks for
-Markdown, AsciiDoc, and plain-text files alongside Vale’s defaults.
+`vale sync` is executed) and enables the Concordat checks for Markdown,
+AsciiDoc, and plain-text files alongside Vale’s defaults.
 
 ### Example `vale` Makefile target
 
 ```makefile
 VALE ?= vale
-VALE_PACKAGES ?= https://github.com/leynos/concordat-vale/releases/download/v0.1.0/concordat-0.1.0.zip
+VALE_CONFIG ?= .vale.ini
 VALE_TARGETS ?= docs/**/*.md README.md
 
+.PHONY: vale-sync
+vale-sync:
+	$(VALE) sync --config $(VALE_CONFIG)
+
 .PHONY: vale
-vale:
-	$(VALE) sync --packages $(VALE_PACKAGES)
-	$(VALE) --minAlertLevel suggestion $(VALE_TARGETS)
+vale: vale-sync
+	$(VALE) --config $(VALE_CONFIG) --minAlertLevel suggestion $(VALE_TARGETS)
 ```
 
-Running `make vale` synchronises the packaged Concordat release before linting
-the selected documentation paths. Override `VALE_PACKAGES` (for example in CI)
-to pin a different release URL, and adjust `VALE_TARGETS` to match the files in
-your repository.
+Running `make vale` synchronises whatever packages are listed in
+`$(VALE_CONFIG)` before linting the selected documentation paths. Update the
+`Packages` entry in that configuration (or point `VALE_CONFIG` at an
+alternative file) to pin a different release URL, and adjust `VALE_TARGETS` to
+match the files in your repository.
