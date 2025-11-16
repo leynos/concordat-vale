@@ -87,7 +87,6 @@ def test_vale_sync_accepts_packaged_archive(
         version=version,
         explicit_styles=None,
         vocabulary=None,
-        target_glob="*.{md,txt}",
         force=True,
     )
     served_archive = serve_dir / archive_path.name
@@ -156,7 +155,6 @@ def test_vale_lint_succeeds_after_installing_packaged_style(
         version="lint-test",
         explicit_styles=None,
         vocabulary=None,
-        target_glob="*.md",
         force=True,
     )
     served_archive = serve_dir / archive_path.name

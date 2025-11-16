@@ -114,14 +114,12 @@ ______________________________________________________________________
 ## 4) The package’s `.vale.ini`
 
 Include a minimal config at the root of the ZIP that points at `styles/` and
-enables the packaged style (and vocab):
+records any bundled vocabulary. Leave `BasedOnStyles` sections to the consumer
+so they can decide which files opt into the package:
 
 ```ini
 # .vale.ini (inside the ZIP)
 StylesPath = styles
-
-[*.{md,adoc,txt}]
-BasedOnStyles = MyStyle
 Vocab = myvocab
 ```
 

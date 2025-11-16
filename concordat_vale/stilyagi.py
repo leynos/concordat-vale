@@ -19,7 +19,6 @@ from cyclopts import App, Parameter
 
 DEFAULT_OUTPUT_DIR = Path("dist")
 DEFAULT_STYLES_PATH = Path("styles")
-DEFAULT_TARGET_GLOB = "*.{md,adoc,txt}"
 ENV_PREFIX = "STILYAGI_"
 PACKAGE_NAME = "concordat-vale"
 
@@ -114,23 +113,14 @@ def _select_vocabulary(styles_root: Path, override: str | None) -> str | None:
 
 def _build_ini(
     styles_path_entry: str,
-    styles: list[str],
-    target_glob: str,
     vocabulary: str | None,
 ) -> str:
-    based_on = ", ".join(styles)
-    body = [f"StylesPath = {styles_path_entry}"]
+    lines = [f"StylesPath = {styles_path_entry}"]
     if vocabulary:
-        body.append(f"Vocab = {vocabulary}")
-    body.extend(
-        [
-            "",
-            f"[{target_glob}]",
-            f"BasedOnStyles = {based_on}",
-            "",
-        ]
-    )
-    return "\n".join(body)
+        lines.append(f"Vocab = {vocabulary}")
+    # Preserve a trailing newline for readability and Vale compatibility.
+    lines.append("")
+    return "\n".join(lines)
 
 
 def _add_styles_to_archive(
@@ -164,7 +154,6 @@ def package_styles(
     version: str,
     explicit_styles: list[str] | None,
     vocabulary: str | None,
-    target_glob: str,
     ini_styles_path: str = "styles",
     force: bool,
 ) -> Path:
@@ -177,7 +166,7 @@ def package_styles(
 
     styles = _discover_style_names(resolved_styles, explicit_styles)
     vocab = _select_vocabulary(resolved_styles, vocabulary)
-    ini_contents = _build_ini(ini_styles_path, styles, target_glob, vocab)
+    ini_contents = _build_ini(ini_styles_path, vocab)
 
     resolved_output = _resolve_project_path(resolved_root, output_dir)
     resolved_output.mkdir(parents=True, exist_ok=True)
@@ -225,9 +214,6 @@ def zip_command(
         str | None,
         Parameter(help="Override the vocabulary name recorded in .vale.ini."),
     ] = None,
-    target_glob: typ.Annotated[
-        str, Parameter(help="Vale file glob inside .vale.ini, without brackets.")
-    ] = DEFAULT_TARGET_GLOB,
     ini_styles_path: typ.Annotated[
         str,
         Parameter(
@@ -254,7 +240,6 @@ def zip_command(
         version=_resolve_version(project_root.expanduser().resolve(), archive_version),
         explicit_styles=style,
         vocabulary=vocabulary,
-        target_glob=target_glob,
         ini_styles_path=ini_styles_path,
         force=force,
     )

@@ -36,9 +36,6 @@
   the `project.version` from `pyproject.toml`, then falls back to the installed
   distribution metadata, and finally to `0.0.0+unknown`. This keeps ad-hoc runs
   reproducible while surfacing the configured release version under normal use.
-- `--target-glob` changes the `[<glob>]` header written to `.vale.ini` without
-  forcing users to edit templates by hand. The default matches Markdown,
-  AsciiDoc, and plain text.
 - `--vocabulary` overrides automatic vocabulary detection. When a single
   directory exists at `styles/config/vocabularies`, it is used automatically
   (currently `concordat`).
@@ -47,13 +44,12 @@
 
 ## Generated `.vale.ini`
 
-- Defaults to `StylesPath = styles`, but honours the CLI/environment override,
+- Defaults to `StylesPath = styles`, but honours the CLI/environment override
   so packages can opt into custom directory names without post-processing.
-- Injects `BasedOnStyles` using the discovered style directory names, so the
-  value remains consistent with Vale's casing rules or any explicit `--style`
-  values coming from `STILYAGI_STYLE`.
 - Records `Vocab = <name>` only when a vocabulary is chosen, so consumers are
   not forced to create placeholder directories.
+- Purposefully omits `BasedOnStyles` and `[pattern]` sections so consumers can
+  decide how to wire the packaged rules into their local config.
 
 ## Archive layout & naming
 
@@ -72,7 +68,6 @@
 - Behavioural tests (`pytest-bdd`) exercise the CLI end-to-end by running
   `python -m concordat_vale.stilyagi zip` against a staged copy of the real
   `styles/` tree. Scenarios now cover successful packaging plus environment
-  overrides, and they assert that the archive contains both the rules and
-  configuration assets, and that the generated `.vale.ini` references the
-  `concordat` style. Direct subprocess tests validate error reporting and exit
-  codes.
+  overrides, asserting that the archive contains both the rules/config and that
+  the generated `.vale.ini` only exposes the core settings. Direct subprocess
+  tests validate error reporting and exit codes.
