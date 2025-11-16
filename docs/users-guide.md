@@ -129,3 +129,45 @@ Running `make vale` synchronises whatever packages are listed in
 `Packages` entry in that configuration (or point `VALE_CONFIG` at an
 alternative file) to pin a different release URL, and adjust `VALE_TARGETS` to
 match the files in your repository.
+
+### Local linting workflow for this repository
+
+This repository ships a `.vale.ini` that points `StylesPath` at `.vale/styles`
+and references the locally built archive `dist/concordat-dev.zip`. Running
+`make vale` orchestrates the following steps:
+
+1. `make vale-archive` rebuilds the development archive via
+   `uv run stilyagi zip --archive-version dev --force`.
+2. `make vale-sync` invokes `vale sync --config .vale.ini` to unpack the
+   archive into `.vale/styles`.
+3. `scripts/update_acronym_allowlist.py` reads `.config/common-acronyms` and
+   injects those entries into
+   `.vale/styles/config/scripts/AcronymsFirstUse.tengo`.
+4. `vale --config .vale.ini --minAlertLevel suggestion $(VALE_TARGETS)` lints
+   `README.md` plus every Markdown and AsciiDoc file under `docs/`.
+
+Running the helper script immediately after `vale sync` ensures the packaged
+`AcronymsFirstUse.tengo` always includes the repository-specific acronyms
+before linting begins.
+
+#### Project-specific acronyms
+
+The `.config/common-acronyms` file stores one acronym per line. Lines beginning
+with `#` (comments) and blank lines are ignored, and entries are normalised to
+uppercase. Update this list whenever Concordat documentation introduces a new
+acronym that should bypass the first-use check. For example:
+
+```plaintext
+# Most documents use these abbreviations without expansion.
+CI
+CD
+OKR
+SLA
+SLO
+```
+
+`scripts/update_acronym_allowlist.py` deduplicates the entries, skips values
+already baked into Concordat’s base allow list, and rewrites the
+`allow := { ... }` map in `AcronymsFirstUse.tengo`. The script is idempotent,
+so editing the acronym file and rerunning `make vale` re-synchronises the map
+without leaving merge conflicts in the generated Tengo source.

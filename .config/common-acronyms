@@ -1,0 +1,8 @@
+# Project-wide acronyms that should be exempt from the first-use rule.
+# Keep entries uppercase (the script normalises lines) and list one token per
+# line. Blank lines and comments starting with '#' are ignored.
+CI
+CD
+OKR
+SLA
+SLO

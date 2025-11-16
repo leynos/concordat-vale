@@ -204,4 +204,6 @@ target/
 # Contains mutation testing data
 **/mutants.out*/
 
+.vale/
+
 .crush/

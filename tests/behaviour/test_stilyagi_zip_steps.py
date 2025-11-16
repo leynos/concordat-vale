@@ -164,7 +164,6 @@ def archive_ini_uses_env_overrides(scenario_state: ScenarioState) -> None:
     """Confirm CLI picks up STILYAGI_ overrides for .vale.ini content."""
     archive_path = scenario_state["archive_path"]
     expected_styles_path = scenario_state["expected_styles_path"]
-    expected_style = scenario_state["expected_style_name"]
 
     with ZipFile(archive_path) as archive:
         ini_body = archive.read(_archive_member(archive_path, ".vale.ini")).decode(
