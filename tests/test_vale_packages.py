@@ -20,30 +20,31 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 VALE_BIN = shutil.which("vale")
 
 
-def _run_vale_sync(env: dict[str, str], cwd: Path) -> subprocess.CompletedProcess[str]:
+def _run_vale_command(
+    args: list[str], env: dict[str, str], cwd: Path
+) -> subprocess.CompletedProcess[str]:
+    """Run a vale command with common configuration."""
     assert VALE_BIN is not None, "vale binary must be available to run this test"
     return subprocess.run(  # noqa: S603 - repository-controlled command invocation
-        [VALE_BIN, "sync"],
+        [VALE_BIN, *args],
         cwd=str(cwd),
         env=env,
         text=True,
         capture_output=True,
         check=False,
     )
+
+
+def _run_vale_sync(env: dict[str, str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    """Run vale sync command."""
+    return _run_vale_command(["sync"], env, cwd)
 
 
 def _run_vale_lint(
     target: Path, env: dict[str, str], cwd: Path
 ) -> subprocess.CompletedProcess[str]:
-    assert VALE_BIN is not None, "vale binary must be available to run this test"
-    return subprocess.run(  # noqa: S603 - repository-controlled command invocation
-        [VALE_BIN, str(target)],
-        cwd=str(cwd),
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    """Run vale lint command on a target file."""
+    return _run_vale_command([str(target)], env, cwd)
 
 
 @pytest.fixture
