@@ -324,7 +324,11 @@ class Valedate:
         styles_dir.mkdir(parents=True, exist_ok=True)
         match styles:
             case cabc.Mapping():
-                _materialise_tree(styles_dir, styles)
+                mapping_styles = typ.cast(
+                    "cabc.Mapping[str, str | bytes]",
+                    styles,
+                )
+                _materialise_tree(styles_dir, mapping_styles)
             case Path():
                 _copy_styles_into(styles_dir, styles)
             case None:

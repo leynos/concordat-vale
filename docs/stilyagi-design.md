@@ -16,6 +16,11 @@
   can also be injected via CI inputs.
 - The `zip` sub-command is focused on packaging. Other automation should be
   added as additional sub-commands rather than new binaries.
+- `update-tengo-map` provides a generic way to merge entries into a named Tengo
+  map (defaulting to `allow`). It trims comments/blank lines in the source
+  file, supports boolean, string, and numeric value parsing via `--type`, and
+  rewrites the map in place while preserving existing entries not mentioned in
+  the source.
 
 ### Parameters
 

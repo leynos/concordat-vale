@@ -17,8 +17,16 @@ from zipfile import ZIP_DEFLATED, ZipFile
 import cyclopts
 from cyclopts import App, Parameter
 
+from .tengo_map import (
+    MapValueType,
+    TengoMapError,
+    parse_source_entries,
+    update_tengo_map,
+)
+
 DEFAULT_OUTPUT_DIR = Path("dist")
 DEFAULT_STYLES_PATH = Path("styles")
+DEFAULT_MAP_NAME = "allow"
 ENV_PREFIX = "STILYAGI_"
 PACKAGE_NAME = "concordat-vale"
 
@@ -47,6 +55,28 @@ def _resolve_project_path(root: Path, candidate: Path) -> Path:
         if candidate.is_absolute()
         else (root / candidate).resolve()
     )
+
+
+def _split_dest(dest: str) -> tuple[Path, str]:
+    """Split ``dest`` into a filesystem path and map name."""
+    path_part, _, map_suffix = dest.partition("::")
+    if not path_part:
+        msg = "Destination must include a Tengo script path."
+        raise ValueError(msg)
+    map_name = map_suffix or DEFAULT_MAP_NAME
+    return Path(path_part), map_name
+
+
+def _coerce_value_type(raw: str) -> MapValueType:
+    """Convert raw CLI input into a MapValueType."""
+    try:
+        return MapValueType(raw)
+    except ValueError as exc:
+        msg = (
+            "Invalid --type value. Choose from "
+            f"{', '.join(choice.value for choice in MapValueType)}."
+        )
+        raise TengoMapError(msg) from exc
 
 
 def _read_pyproject_version(root: Path) -> str | None:
@@ -246,6 +276,52 @@ def zip_command(
     print(archive_path)
     # Keep returning the string for programmatic callers.
     return str(archive_path)
+
+
+@app.command(name="update-tengo-map")
+def update_tengo_map_command(
+    *,
+    project_root: typ.Annotated[
+        Path, Parameter(help="Root directory for resolving relative paths.")
+    ] = Path(),
+    source: typ.Annotated[Path, Parameter(help="Path to the source entries file.")],
+    dest: typ.Annotated[
+        str,
+        Parameter(
+            help=(
+                "Tengo script path, optionally suffixed with ::mapname."
+                " Defaults to ::" + DEFAULT_MAP_NAME
+            )
+        ),
+    ],
+    value_type: typ.Annotated[
+        str,
+        Parameter(
+            name="type",
+            help="Value parsing mode: true, =, =b, or =n.",
+        ),
+    ] = MapValueType.TRUE.value,
+) -> str:
+    """Update a Tengo map with entries from a source list."""
+    resolved_root = project_root.expanduser().resolve()
+    resolved_source = _resolve_project_path(resolved_root, source)
+
+    try:
+        dest_path, map_name = _split_dest(dest)
+        resolved_dest = _resolve_project_path(resolved_root, dest_path)
+        map_value_type = _coerce_value_type(value_type)
+
+        entries_provided, entries = parse_source_entries(
+            resolved_source, map_value_type
+        )
+        result = update_tengo_map(resolved_dest, map_name, entries)
+    except (FileNotFoundError, TengoMapError, ValueError) as exc:
+        raise SystemExit(str(exc)) from exc
+
+    message = f"{entries_provided} entries provided, {result.updated} updated"
+
+    print(message)
+    return message
 
 
 def main() -> None:

@@ -171,3 +171,25 @@ already baked into Concordat’s base allow list, and rewrites the
 `allow := { ... }` map in `AcronymsFirstUse.tengo`. The script is idempotent,
 so editing the acronym file and rerunning `make vale` re-synchronises the map
 without leaving merge conflicts in the generated Tengo source.
+
+### Updating Tengo maps with `stilyagi`
+
+- `stilyagi update-tengo-map` merges entries from a source file into a Tengo
+  map. The `--dest` argument accepts a Tengo script path plus an optional map
+  suffix (for example, `scripts/AcronymsFirstUse.tengo::allow`). When the
+  suffix is omitted, the `allow` map is targeted.
+- `--source` points at the list of entries. Blank lines and lines that start
+  with `#` are ignored, and any text after whitespace and an optional `#` is
+  stripped.
+- `--type` defaults to `true`, which writes every entry as `"key": true`. Use
+  `=` to write string values (splitting on the first `=` per line), `=b` to
+  coerce booleans, and `=n` for numeric values.
+- The command exits after printing a concise summary such as
+  `2 entries provided, 1 updated`.
+- Example: to inject local acronyms without the helper script, run:
+
+  ```bash
+  uv run stilyagi update-tengo-map \
+    --source .config/common-acronyms \
+    --dest .vale/styles/config/scripts/AcronymsFirstUse.tengo
+  ```

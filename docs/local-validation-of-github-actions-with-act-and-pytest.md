@@ -186,10 +186,10 @@ runtime or socket is unavailable, but to _run_ it you must opt in:
 ACT_WORKFLOW_TESTS=1 sudo -E make test
 ```
 
-That target first runs the regular test suite as the invoking user, then re-runs
-only the workflow harness when `ACT_WORKFLOW_TESTS=1`. After running with sudo,
-remove the root-owned `.venv` (`sudo rm -rf .venv`) so future non-root commands
-can recreate it.
+That target first runs the regular test suite as the invoking user, then
+re-runs only the workflow harness when `ACT_WORKFLOW_TESTS=1`. After running
+with sudo, remove the root-owned `.venv` (`sudo rm -rf .venv`) so future
+non-root commands can recreate it.
 
 ## Record -> replay -> verify (closing the loop)
 
