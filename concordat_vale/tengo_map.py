@@ -88,14 +88,14 @@ def update_tengo_map(
     entry_indent = _determine_entry_indent(lines, start_idx + 1, end_idx, map_indent)
     existing = _collect_entries(lines, start_idx + 1, end_idx)
 
-    updated = 0
-    updated, lines = _process_entries(
-        lines,
-        entries,
-        existing,
-        entry_indent,
-        end_idx,
+    ctx = _MapContext(
+        lines=lines,
+        existing=existing,
+        entry_indent=entry_indent,
+        closing_idx=end_idx,
     )
+    updated = _process_entries(ctx, entries)
+    lines = ctx.lines
 
     new_text = "\n".join(lines) + "\n"
     wrote_file = new_text != text
@@ -104,48 +104,37 @@ def update_tengo_map(
     return MapUpdateResult(updated=updated, wrote_file=wrote_file)
 
 
-def _process_entries(
-    lines: list[str],
-    entries: cabc.Mapping[str, object],
-    existing: dict[str, _Entry],
-    entry_indent: str,
-    closing_idx: int,
-) -> tuple[int, list[str]]:
+def _process_entries(context: _MapContext, entries: cabc.Mapping[str, object]) -> int:
     updated = 0
-    current_closing_idx = closing_idx
     for key, value in entries.items():
-        delta, current_closing_idx = _apply_entry_updates(
-            lines,
-            existing,
+        delta, context.closing_idx = _apply_entry_updates(
+            context,
             key,
             value,
-            entry_indent,
-            current_closing_idx,
+            context.closing_idx,
         )
         updated += delta
-    return updated, lines
+    return updated
 
 
 def _apply_entry_updates(
-    lines: list[str],
-    existing: dict[str, _Entry],
-    key: str,
-    value: object,
-    entry_indent: str,
-    closing_idx: int,
+    context: _MapContext, key: str, value: object, closing_idx: int
 ) -> tuple[int, int]:
-    if key in existing:
-        entry = existing[key]
+    if key in context.existing:
+        entry = context.existing[key]
         if _values_equal(entry.value, value):
             return 0, closing_idx
-        _update_existing_entry(lines, entry, key, value)
+        _update_existing_entry(context.lines, entry, key, value)
         return 1, closing_idx
 
-    _insert_new_entry(lines, closing_idx, key, value, entry_indent)
+    rendered_line = _render_entry(key, value, context.entry_indent, "")
+    _insert_new_entry(context.lines, closing_idx, rendered_line)
     return 1, closing_idx + 1
 
 
-def _update_existing_entry(lines: list[str], entry: _Entry, key: str, value: object) -> None:
+def _update_existing_entry(
+    lines: list[str], entry: _Entry, key: str, value: object
+) -> None:
     lines[entry.index] = _render_entry(
         key,
         value,
@@ -157,14 +146,10 @@ def _update_existing_entry(lines: list[str], entry: _Entry, key: str, value: obj
 def _insert_new_entry(
     lines: list[str],
     position: int,
-    key: str,
-    value: object,
-    indent: str,
+    rendered_line: str,
 ) -> None:
-    lines.insert(
-        position,
-        _render_entry(key, value, indent, ""),
-    )
+    """Insert a pre-rendered entry line at the specified position."""
+    lines.insert(position, rendered_line)
 
 
 @dc.dataclass(frozen=True)
@@ -173,6 +158,16 @@ class _Entry:
     indent: str
     comment: str
     value: object
+
+
+@dc.dataclass()
+class _MapContext:
+    """Context for processing Tengo map entries."""
+
+    lines: list[str]
+    existing: dict[str, _Entry]
+    entry_indent: str
+    closing_idx: int
 
 
 def _find_map_header(lines: list[str], map_name: str) -> tuple[int, str]:
@@ -302,7 +297,8 @@ def _parse_existing_value(raw: str) -> object:
     ]
 
     for parser in parsers:
-        if parsed := parser(stripped):
+        parsed = parser(stripped)
+        if parsed is not None:
             return parsed
     return stripped
 

@@ -114,6 +114,69 @@ BasedOnStyles = concordat
     )
 
 
+def _create_test_style_and_vocab(styles_root: Path) -> tuple[Path, Path]:
+    style_dir = styles_root / "simple-style"
+    style_dir.mkdir(parents=True)
+    style_path = style_dir / "SimpleSpelling.yml"
+    style_path.write_text(
+        textwrap.dedent(
+            """
+            extends: spelling
+            message: "Spell-check project-specific words."
+            level: error
+            locale: en-US
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    vocab_dir = styles_root / "config" / "vocabularies" / "simple"
+    vocab_dir.mkdir(parents=True)
+    vocab_path = vocab_dir / "accept.txt"
+    vocab_path.write_text("foobarium\n", encoding="utf-8")
+    return style_path, vocab_path
+
+
+def _setup_vale_environment(
+    workspace: Path, base_url: str, archive_name: str, tmp_path: Path
+) -> dict[str, str]:
+    vale_ini = workspace / ".vale.ini"
+    vale_ini.write_text(
+        textwrap.dedent(
+            f"""
+            StylesPath = styles
+            Packages = {base_url}/{archive_name}
+            Vocab = simple
+
+            [*.md]
+            BasedOnStyles = simple-style
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    env = os.environ.copy()
+    vale_home = tmp_path / ".vale-home"
+    env["VALE_HOME"] = str(vale_home)
+    env["VALE_CONFIG_PATH"] = str(vale_ini)
+    return env
+
+
+def _verify_synced_files(workspace: Path) -> None:
+    synced_style = workspace / "styles" / "simple-style" / "SimpleSpelling.yml"
+    assert synced_style.exists(), (
+        f"vale sync did not install the packaged style at {synced_style}"
+    )
+    synced_vocab = (
+        workspace / "styles" / "config" / "vocabularies" / "simple" / "accept.txt"
+    )
+    assert synced_vocab.exists(), (
+        f"vale sync did not unpack the vocabulary file at {synced_vocab}"
+    )
+
+
 @pytest.mark.slow
 def test_vale_lint_succeeds_after_installing_packaged_style(
     tmp_path: Path, http_server: tuple[str, Path]
