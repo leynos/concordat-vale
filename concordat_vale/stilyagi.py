@@ -176,13 +176,9 @@ def _merge_required_section(
     return merged
 
 
-def _render_ini(
-    *,
-    root_options: dict[str, str],
-    sections: dict[str, dict[str, str]],
-) -> str:
-    """Render a deterministic .vale.ini from parsed sections."""
-    root_priority = ("Packages", "MinAlertLevel", "Vocab")
+def _render_root_options(
+    root_options: dict[str, str], root_priority: tuple[str, ...]
+) -> list[str]:
     lines: list[str] = [
         *(
             f"{key} = {root_options[key]}"
@@ -197,6 +193,26 @@ def _render_ini(
     )
     if lines:
         lines.append("")
+    return lines
+
+
+def _emit_section(name: str, options: dict[str, str], lines: list[str]) -> None:
+    lines.append(f"[{name}]")
+    for key, value in options.items():
+        if key == "BlockIgnores":
+            lines.append("# Ignore for footnotes")
+        lines.append(f"{key} = {value}")
+    lines.append("")
+
+
+def _render_ini(
+    *,
+    root_options: dict[str, str],
+    sections: dict[str, dict[str, str]],
+) -> str:
+    """Render a deterministic .vale.ini from parsed sections."""
+    root_priority = ("Packages", "MinAlertLevel", "Vocab")
+    lines = _render_root_options(root_options, root_priority)
 
     section_order = [
         "docs/**/*.{md,markdown,mdx}",
@@ -205,21 +221,13 @@ def _render_ini(
         "README.md",
     ]
 
-    def emit_section(name: str, options: dict[str, str]) -> None:
-        lines.append(f"[{name}]")
-        for key, value in options.items():
-            if key == "BlockIgnores":
-                lines.append("# Ignore for footnotes")
-            lines.append(f"{key} = {value}")
-        lines.append("")
-
     for name in section_order:
         if name in sections:
-            emit_section(name, sections[name])
+            _emit_section(name, sections[name], lines)
 
     for name in sorted(sections):
         if name not in section_order:
-            emit_section(name, sections[name])
+            _emit_section(name, sections[name], lines)
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -295,30 +303,69 @@ def _ensure_phony(lines: list[str], target: str) -> list[str]:
     return [f".PHONY: {target}"] + ([""] if lines else []) + lines
 
 
-def _replace_vale_target(lines: list[str]) -> list[str]:
-    """Swap any existing vale target with the canonical recipe."""
-    target_header = "vale:"
-    start_idx = None
+def _find_target_start(lines: list[str], target_header: str) -> int | None:
+    """Return the index of the first line starting with ``target_header``."""
     for idx, line in enumerate(lines):
         if line.startswith(target_header):
-            start_idx = idx
-            break
+            return idx
+    return None
 
-    recipe = [
-        "vale: $(VALE) $(ACRONYM_SCRIPT) ## Check prose",
-        "\t$(VALE) sync",
-        "\t$(VALE) --no-global .",
-    ]
 
-    if start_idx is None:
-        return lines + ([""] if lines and lines[-1].strip() else []) + recipe
-
+def _find_target_end(lines: list[str], start_idx: int) -> int:
+    """Locate the end of the target block beginning at ``start_idx``."""
     end_idx = start_idx + 1
     while end_idx < len(lines) and lines[end_idx].startswith("\t"):
         end_idx += 1
     while end_idx < len(lines) and lines[end_idx].strip() == "":
         end_idx += 1
+    return end_idx
 
+
+def _append_with_spacing(lines: list[str], recipe: list[str]) -> list[str]:
+    """Append ``recipe`` to ``lines`` preserving a single blank separator."""
+    if lines and lines[-1].strip():
+        return [*lines, "", *recipe]
+    return lines + recipe
+
+
+def _parse_repo_reference(repo: str) -> tuple[str, str, str]:
+    """Parse and validate a GitHub repository reference."""
+    if repo.count("/") != 1:
+        msg = "Repository reference must be in the form owner/name"
+        raise ValueError(msg)
+
+    owner, repo_name = (part.strip() for part in repo.split("/", maxsplit=1))
+    if not owner or not repo_name:
+        msg = "Repository reference must include both owner and name"
+        raise ValueError(msg)
+
+    style_name = _style_name_for_repo(repo_name)
+    return owner, repo_name, style_name
+
+
+def _resolve_install_paths(
+    *, cwd: Path, project_root: Path, vale_ini: Path, makefile: Path
+) -> tuple[Path, Path, Path]:
+    """Resolve and prepare installation paths."""
+    resolved_root = _resolve_project_path(cwd, project_root)
+    ini_path = _resolve_project_path(resolved_root, vale_ini)
+    makefile_path = _resolve_project_path(resolved_root, makefile)
+    ini_path.parent.mkdir(parents=True, exist_ok=True)
+    return resolved_root, ini_path, makefile_path
+
+
+def _replace_vale_target(lines: list[str]) -> list[str]:
+    """Swap any existing vale target with the canonical recipe."""
+    recipe = [
+        "vale: $(VALE) $(ACRONYM_SCRIPT) ## Check prose",
+        "\t$(VALE) sync",
+        "\t$(VALE) --no-global .",
+    ]
+    start_idx = _find_target_start(lines, "vale:")
+    if start_idx is None:
+        return _append_with_spacing(lines, recipe)
+
+    end_idx = _find_target_end(lines, start_idx)
     return lines[:start_idx] + recipe + lines[end_idx:]
 
 
@@ -696,28 +743,21 @@ def install_command(
     ] = None,
 ) -> str:
     """Install the Concordat style into an external repository."""
-    if repo.count("/") != 1:
-        msg = "Repository reference must be in the form owner/name"
-        raise ValueError(msg)
+    owner, repo_name, style_name = _parse_repo_reference(repo)
 
-    owner, repo_name = (part.strip() for part in repo.split("/", maxsplit=1))
-    if not owner or not repo_name:
-        msg = "Repository reference must include both owner and name"
-        raise ValueError(msg)
+    _resolved_root, ini_path, makefile_path = _resolve_install_paths(
+        cwd=Path.cwd(),
+        project_root=project_root,
+        vale_ini=vale_ini,
+        makefile=makefile,
+    )
 
-    style_name = _style_name_for_repo(repo_name)
-
-    resolved_root = _resolve_project_path(Path.cwd(), project_root)
     version_str, _tag_str, packages_url = _resolve_release(
         repo=f"{owner}/{repo_name}",
         style_name=style_name,
         override_version=release_version,
         override_tag=tag,
     )
-
-    ini_path = _resolve_project_path(resolved_root, vale_ini)
-    makefile_path = _resolve_project_path(resolved_root, makefile)
-    ini_path.parent.mkdir(parents=True, exist_ok=True)
 
     _update_vale_ini(
         ini_path=ini_path,
