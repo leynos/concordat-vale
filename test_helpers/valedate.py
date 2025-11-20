@@ -324,7 +324,16 @@ class Valedate:
         styles_dir.mkdir(parents=True, exist_ok=True)
         match styles:
             case cabc.Mapping():
-                _materialise_tree(styles_dir, styles)
+                cleaned: dict[str, str | bytes] = {}
+                for rel_path, contents in styles.items():
+                    if not isinstance(contents, (bytes, str)):
+                        msg = (
+                            "styles mapping values must be str or bytes, got "
+                            f"{type(contents).__name__}"
+                        )
+                        raise TypeError(msg)
+                    cleaned[str(rel_path)] = contents
+                _materialise_tree(styles_dir, cleaned)
             case Path():
                 _copy_styles_into(styles_dir, styles)
             case None:

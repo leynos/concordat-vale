@@ -47,6 +47,56 @@ cover Markdown, AsciiDoc, and text files.
    pointing `.vale.ini`'s `Packages` entry at `dist/<archive>.zip` (use an
    absolute path when the consumer lives elsewhere), then run `vale sync`.
 
+## Installing Concordat with `stilyagi install`
+
+`stilyagi install <owner>/<repo>` fetches the latest GitHub release metadata
+and rewrites `.vale.ini` so `vale sync` downloads the tagged Concordat package.
+The command preserves an existing `StylesPath` (defaulting to `.vale/styles` to
+keep downloads out of the tracked `styles/` tree), pins the `Packages` entry to
+the archive, raises `MinAlertLevel` to `warning`, and records the
+Concordat-focused targets for docs, code, and the README.
+
+Example workflow:
+
+1. `uv run stilyagi install leynos/concordat-vale`
+2. `make vale`
+
+Useful options:
+
+- `--config-path` (`STILYAGI_CONFIG_PATH`) writes to an alternate config file.
+- `--styles-path` (`STILYAGI_STYLES_PATH`) forces a specific `StylesPath`
+  value.
+- `--api-base` (`STILYAGI_API_BASE`) points at a mock GitHub API during tests.
+- `--token`, `STILYAGI_TOKEN`, or `GITHUB_TOKEN` authenticates API requests
+  when rate limits are tight.
+
+The resulting `.vale.ini` resembles:
+
+```ini
+StylesPath = .vale/styles
+Packages = https://github.com/leynos/concordat-vale/releases/download/v0.1.0/concordat-0.1.0.zip
+MinAlertLevel = warning
+Vocab = concordat
+
+[docs/**/*.{md,markdown,mdx}]
+BasedOnStyles = concordat
+# Ignore for footnotes
+BlockIgnores = (?m)^\[\^\d+\]:[^\n]*(?:\n[ \t]+[^\n]*)*
+
+[AGENTS.md]
+BasedOnStyles = concordat
+
+[*.{rs,ts,js,sh,py}]
+BasedOnStyles = concordat
+concordat.RustNoRun = NO
+concordat.Acronyms = NO
+
+# README.md may use first/second person pronouns
+[README.md]
+BasedOnStyles = concordat
+concordat.Pronouns = NO
+```
+
 ## Release
 
 The `release` GitHub Actions workflow at `.github/workflows/release.yml` keeps
@@ -87,68 +137,36 @@ publishes the resulting ZIP straight to the matching release.
 
 ## Consuming the Concordat Vale style
 
-Releases expose a ready-to-sync ZIP that contains `.vale.ini`, the Concordat
-style files, and the supporting vocabulary. Consumers should download the
-artefact from <https://github.com/leynos/concordat-vale/releases>, record the
-release URL in the consuming repository's `.vale.ini` via `Packages = <url>`,
-run `vale sync`, then reference the style in their configuration.
-
-### Example `.vale.ini`
-
-```ini
-StylesPath = styles
-MinAlertLevel = suggestion
-Packages = https://github.com/leynos/concordat-vale/releases/download/v0.1.0/concordat-0.1.0.zip
-
-[*.{md,adoc,txt}]
-BasedOnStyles = Vale, concordat
-```
-
-This configuration downloads the `v0.1.0` artefact into `styles/` (when
-`vale sync` is executed) and enables the Concordat checks for Markdown,
-AsciiDoc, and plain-text files alongside Vale’s defaults.
+Run `stilyagi install leynos/concordat-vale` in the consumer repository to pin
+`.vale.ini` to the freshest release, then `make vale` to sync and lint. The
+generated config enables Concordat for Markdown and MDX under `docs/`, for
+`AGENTS.md`, for common source files, and for `README.md` while relaxing
+pronoun checks there. `MinAlertLevel` is raised to `warning` to surface issues
+earlier in CI.
 
 ### Example `vale` Makefile target
 
 ```makefile
 VALE ?= vale
-VALE_CONFIG ?= .vale.ini
-VALE_TARGETS ?= docs/**/*.md README.md
-
-.PHONY: vale-sync
-vale-sync:
-	$(VALE) sync --config $(VALE_CONFIG)
 
 .PHONY: vale
-vale: vale-sync
-	$(VALE) --config $(VALE_CONFIG) --minAlertLevel suggestion $(VALE_TARGETS)
+vale: $(VALE)
+	$(VALE) sync
+	$(VALE) --no-global .
 ```
 
-Running `make vale` synchronises whatever packages are listed in
-`$(VALE_CONFIG)` before linting the selected documentation paths. Update the
-`Packages` entry in that configuration (or point `VALE_CONFIG` at an
-alternative file) to pin a different release URL, and adjust `VALE_TARGETS` to
-match the files in your repository.
+`vale --no-global .` forces Vale to respect the repository’s `.vale.ini` only
+and lints the full tree after syncing packages.
 
 ### Local linting workflow for this repository
 
-This repository ships a `.vale.ini` that points `StylesPath` at `.vale/styles`
-and references the locally built archive `dist/concordat-dev.zip`. Running
-`make vale` orchestrates the following steps:
+This repository ships the generated `.vale.ini` shown above. Running
+`make vale` downloads the tagged Concordat release into `.vale/styles` and
+lints the entire repository with the documented overrides.
 
-1. `make vale-archive` rebuilds the development archive via
-   `uv run stilyagi zip --archive-version dev --force`.
-2. `make vale-sync` invokes `vale sync --config .vale.ini` to unpack the
-   archive into `.vale/styles`.
-3. `scripts/update_acronym_allowlist.py` reads `.config/common-acronyms` and
-   injects those entries into
-   `.vale/styles/config/scripts/AcronymsFirstUse.tengo`.
-4. `vale --config .vale.ini --minAlertLevel suggestion $(VALE_TARGETS)` lints
-   `README.md` plus every Markdown and AsciiDoc file under `docs/`.
-
-Running the helper script immediately after `vale sync` ensures the packaged
-`AcronymsFirstUse.tengo` always includes the repository-specific acronyms
-before linting begins.
+If you need repository-specific acronyms, run
+`uv run --script scripts/update_acronym_allowlist.py` after `vale sync`; the
+script rewrites the packaged `AcronymsFirstUse.tengo` allow list in place.
 
 #### Project-specific acronyms
 

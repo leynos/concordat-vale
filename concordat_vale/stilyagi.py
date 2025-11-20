@@ -4,12 +4,17 @@
 # dependencies = ["cyclopts>=2.9"]
 # ///
 
-"""Cyclopts-powered CLI for packaging Concordat Vale styles into ZIPs."""
+"""Cyclopts-powered CLI for packaging and installing Concordat Vale styles."""
 
 from __future__ import annotations
 
+import json
+import os
 import tomllib
 import typing as typ
+import urllib.error
+import urllib.parse
+import urllib.request
 from importlib import metadata
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -19,14 +24,25 @@ from cyclopts import App, Parameter
 
 DEFAULT_OUTPUT_DIR = Path("dist")
 DEFAULT_STYLES_PATH = Path("styles")
+DEFAULT_CONFIG_PATH = Path(".vale.ini")
 ENV_PREFIX = "STILYAGI_"
 PACKAGE_NAME = "concordat-vale"
+DEFAULT_GITHUB_API_BASE = "https://api.github.com"
+DEFAULT_INSTALL_STYLES_PATH = ".vale/styles"
 
 app = App()
 app.help = "Utilities for packaging and distributing Vale styles."
 app.config = cyclopts.config.Env(ENV_PREFIX, command=False)
 # Disable Cyclopts' auto-print (which wraps long lines) and print manually instead.
 app.result_action = "return_value"
+
+
+class ReleaseInfo(typ.NamedTuple):
+    """Minimal release metadata required to update Vale configs."""
+
+    tag: str
+    version: str
+    asset_url: str
 
 
 def _split_comma_env(
@@ -123,6 +139,172 @@ def _build_ini(
     return "\n".join(lines)
 
 
+def _strip_tag_prefix(tag: str) -> str:
+    """Drop a leading ``v`` or ``V`` from a release tag when present."""
+    return tag[1:] if tag.lower().startswith("v") else tag
+
+
+def _latest_release_url(api_base: str, repo: str) -> str:
+    """Construct the releases/latest endpoint for the supplied repository."""
+    owner_repo = repo.strip().strip("/")
+    if owner_repo.count("/") != 1:
+        msg = "Repository reference must look like '<owner>/<repo>'"
+        raise ValueError(msg)
+
+    base = api_base.rstrip("/")
+    return f"{base}/repos/{owner_repo}/releases/latest"
+
+
+def _select_zip_asset(assets: list[dict[str, typ.Any]], version: str) -> str:
+    """Pick the Concordat ZIP download URL from the release assets."""
+    expected_suffix = f"concordat-{version}.zip"
+    for asset in assets:
+        name = str(asset.get("name", ""))
+        url = asset.get("browser_download_url")
+        if name.endswith(expected_suffix) and isinstance(url, str) and url.strip():
+            return url
+
+    for asset in assets:
+        name = str(asset.get("name", ""))
+        url = asset.get("browser_download_url")
+        if name.lower().endswith(".zip") and isinstance(url, str) and url.strip():
+            return url
+
+    msg = "Latest release does not expose a downloadable ZIP asset"
+    raise RuntimeError(msg)
+
+
+def _fetch_latest_release(
+    repo: str,
+    *,
+    api_base: str = DEFAULT_GITHUB_API_BASE,
+    token: str | None = None,
+    opener: typ.Callable[[urllib.request.Request, int], typ.Any] | None = None,
+) -> ReleaseInfo:
+    """Read release metadata for *repo* and locate the Concordat ZIP asset."""
+    target = _latest_release_url(api_base, repo)
+    parsed_target = urllib.parse.urlparse(target)
+    if parsed_target.scheme not in {"http", "https"}:
+        msg = (
+            "GitHub API URL must use http or https; got "
+            f"{parsed_target.scheme or '<empty>'}"
+        )
+        raise ValueError(msg)
+
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "stilyagi/; concordat-vale",
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    request = urllib.request.Request(  # noqa: S310 - validated http/https URL
+        target, headers=headers
+    )
+    http_open = opener or urllib.request.urlopen
+    try:
+        with http_open(request, timeout=10) as response:  # type: ignore[call-arg]
+            status = response.getcode()
+            if status >= 400:
+                msg = f"GitHub API request failed with HTTP {status}"
+                raise RuntimeError(msg)
+            payload = response.read()
+    except urllib.error.HTTPError as exc:
+        msg = f"GitHub API request failed: HTTP {exc.code} {exc.reason}"
+        raise RuntimeError(msg) from exc
+    except urllib.error.URLError as exc:  # pragma: no cover - network instability
+        msg = f"GitHub API request failed: {exc.reason}"
+        raise RuntimeError(msg) from exc
+
+    try:
+        data = json.loads(payload.decode("utf-8"))
+    except json.JSONDecodeError as exc:  # pragma: no cover - defensive path
+        msg = "GitHub API responded with invalid JSON"
+        raise ValueError(msg) from exc
+
+    tag = str(data.get("tag_name", "")).strip()
+    if not tag:
+        msg = "Latest release payload is missing tag_name"
+        raise ValueError(msg)
+
+    assets = data.get("assets")
+    if not isinstance(assets, list):
+        msg = "Latest release payload is missing assets"
+        raise TypeError(msg)
+
+    version = _strip_tag_prefix(tag)
+    package_url = _select_zip_asset(assets, version)
+    return ReleaseInfo(tag=tag, version=version, asset_url=package_url)
+
+
+def _existing_styles_path(config_path: Path) -> str | None:
+    """Return the StylesPath already recorded in the Vale config, if any."""
+    if not config_path.exists():
+        return None
+
+    for line in config_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip().startswith("StylesPath"):
+            continue
+        _, _, value = line.partition("=")
+        stripped = value.strip()
+        if stripped:
+            return stripped
+    return None
+
+
+def _render_install_ini(styles_path: str, packages_url: str) -> str:
+    """Render the Concordat-focused Vale configuration snippet."""
+    lines = [
+        f"StylesPath = {styles_path}",
+        f"Packages = {packages_url}",
+        "MinAlertLevel = warning",
+        "Vocab = concordat",
+        "",
+        "[docs/**/*.{md,markdown,mdx}]",
+        "BasedOnStyles = concordat",
+        "# Ignore for footnotes",
+        r"BlockIgnores = (?m)^\[\^\d+\]:[^\n]*(?:\n[ \t]+[^\n]*)*",
+        "",
+        "[AGENTS.md]",
+        "BasedOnStyles = concordat",
+        "",
+        "[*.{rs,ts,js,sh,py}]",
+        "BasedOnStyles = concordat",
+        "concordat.RustNoRun = NO",
+        "concordat.Acronyms = NO",
+        "",
+        "# README.md may use first/second person pronouns",
+        "[README.md]",
+        "BasedOnStyles = concordat",
+        "concordat.Pronouns = NO",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def install_styles(
+    *,
+    repo: str,
+    config_path: Path = DEFAULT_CONFIG_PATH,
+    api_base: str = DEFAULT_GITHUB_API_BASE,
+    styles_path: str | None = None,
+    token: str | None = None,
+) -> Path:
+    """Update a Vale config to point at the latest Concordat release package."""
+    resolved_config = _resolve_project_path(Path.cwd(), config_path)
+    resolved_config.parent.mkdir(parents=True, exist_ok=True)
+
+    release = _fetch_latest_release(repo, api_base=api_base, token=token)
+    styles_entry = (
+        styles_path
+        or _existing_styles_path(resolved_config)
+        or DEFAULT_INSTALL_STYLES_PATH
+    )
+    body = _render_install_ini(styles_entry, release.asset_url)
+    resolved_config.write_text(body, encoding="utf-8")
+    return resolved_config
+
+
 def _add_styles_to_archive(
     zip_file: ZipFile,
     styles_root: Path,
@@ -189,6 +371,55 @@ def package_styles(
         )
 
     return archive_path
+
+
+@app.command(name="install")
+def install_command(
+    repo: typ.Annotated[
+        str,
+        Parameter(help="GitHub repo reference (for example, leynos/concordat-vale)."),
+    ],
+    config_path: typ.Annotated[
+        Path,
+        Parameter(
+            help="Path to the .vale.ini file to update.", env_var="STILYAGI_CONFIG_PATH"
+        ),
+    ] = DEFAULT_CONFIG_PATH,
+    api_base: typ.Annotated[
+        str,
+        Parameter(
+            help="GitHub API base URL used to resolve releases.",
+            env_var="STILYAGI_API_BASE",
+        ),
+    ] = DEFAULT_GITHUB_API_BASE,
+    styles_path: typ.Annotated[
+        str | None,
+        Parameter(
+            help="Override the StylesPath recorded in .vale.ini.",
+            env_var="STILYAGI_STYLES_PATH",
+        ),
+    ] = None,
+    token: typ.Annotated[
+        str | None,
+        Parameter(
+            help=(
+                "GitHub token for authenticated API access (defaults to GITHUB_TOKEN)."
+            ),
+            env_var="STILYAGI_TOKEN",
+        ),
+    ] = None,
+) -> str:
+    """Record Concordat packages and defaults into the Vale config."""
+    resolved_token = token or os.environ.get("GITHUB_TOKEN")
+    updated_config = install_styles(
+        repo=repo,
+        config_path=config_path,
+        api_base=api_base,
+        styles_path=styles_path,
+        token=resolved_token,
+    )
+    print(updated_config)
+    return str(updated_config)
 
 
 @app.command(name="zip")

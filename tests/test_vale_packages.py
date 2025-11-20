@@ -6,11 +6,11 @@ import http.server
 import os
 import shutil
 import subprocess
+import textwrap
 import threading
 import typing as typ
 from functools import partial
 from pathlib import Path
-import textwrap
 
 import pytest
 
@@ -192,11 +192,13 @@ def test_vale_lint_succeeds_after_installing_packaged_style(
 
     synced_style = workspace / "styles" / "simple-style" / "SimpleSpelling.yml"
     assert synced_style.exists(), (
-        "vale sync did not install the packaged style at " f"{synced_style}"
+        f"vale sync did not install the packaged style at {synced_style}"
     )
-    synced_vocab = workspace / "styles" / "config" / "vocabularies" / "simple" / "accept.txt"
+    synced_vocab = (
+        workspace / "styles" / "config" / "vocabularies" / "simple" / "accept.txt"
+    )
     assert synced_vocab.exists(), (
-        "vale sync did not unpack the vocabulary file at " f"{synced_vocab}"
+        f"vale sync did not unpack the vocabulary file at {synced_vocab}"
     )
 
     lint_result = _run_vale_lint(sample_doc, env, workspace)

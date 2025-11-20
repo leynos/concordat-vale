@@ -72,9 +72,7 @@ def test_package_styles_builds_archive_with_ini_and_files(sample_project: Path) 
     assert "BasedOnStyles" not in ini_body, (
         "Generated .vale.ini should not declare BasedOnStyles entries"
     )
-    assert "Vocab = concordat" in ini_body, (
-        "Expected 'Vocab = concordat' in .vale.ini"
-    )
+    assert "Vocab = concordat" in ini_body, "Expected 'Vocab = concordat' in .vale.ini"
     assert "[*." not in ini_body, (
         "Generated .vale.ini should not define file-targeted sections"
     )

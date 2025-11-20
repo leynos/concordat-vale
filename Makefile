@@ -90,9 +90,10 @@ vale-archive: build ## Build the dev Concordat archive for local linting
 vale-sync: vale-archive ## Sync Concordat into .vale/styles
 	$(VALE) sync --config $(VALE_CONFIG)
 
-vale: vale-sync ## Lint docs with Vale after syncing and patching acronyms
-	$(UV_ENV) uv run --script $(ACRONYM_SCRIPT)
-	$(VALE) --config $(VALE_CONFIG) --minAlertLevel suggestion $(VALE_TARGETS)
+.PHONY: vale
+vale: $(VALE) $(ACRONYM_SCRIPT) ## Check prose
+	$(VALE) sync
+	$(VALE) --no-global .
 
 test: build uv $(VENV_TOOLS) ## Run tests
 	$(UV_ENV) uv run pytest -v -n auto
