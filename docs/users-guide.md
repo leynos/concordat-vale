@@ -18,6 +18,69 @@ Running the command without flags auto-discovers available styles and the sole
 vocabulary (`concordat`). The `.vale.ini` header matches `[*.{md,adoc,txt}]` to
 cover Markdown, AsciiDoc, and text files.
 
+## Installing Concordat into another repository with `stilyagi install`
+
+`stilyagi install` updates a consumer repository in-place so that Vale
+downloads and activates the latest Concordat release. It writes the required
+entries to `.vale.ini` and ensures the Makefile contains a `vale` target that
+performs a `vale sync` followed by a lint run.
+
+- `stilyagi install <owner>/<repo>` fetches the latest GitHub release and uses
+  the matching download URL in `.vale.ini`'s `Packages` entry. For Concordat
+  this becomes
+  `https://github.com/leynos/concordat-vale/releases/download/v<version>/concordat-<version>.zip`.
+- `--project-root` points at the consumer repository (defaults to `.`).
+- `--vale-ini` and `--makefile` override the paths that should be rewritten.
+- `--release-version` and `--tag` bypass GitHub lookups when the caller
+  already knows which release to pin. `--tag` defaults to `v<version>` when
+  omitted.
+
+Example installation flow:
+
+```bash
+cd ~/Projects/limela
+uv run --with https://github.com/leynos/concordat-vale.git \
+  stilyagi install leynos/concordat-vale
+```
+
+After running the command the consumer repository will contain:
+
+```ini
+Packages = https://github.com/leynos/concordat-vale/releases/download/v<version>/concordat-<version>.zip
+MinAlertLevel = warning
+Vocab = concordat
+
+[docs/**/*.{md,markdown,mdx}]
+BasedOnStyles = concordat
+# Ignore for footnotes
+BlockIgnores = (?m)^\[\^\d+\]:[^\n]*(?:\n[ \t]+[^\n]*)*
+
+[AGENTS.md]
+BasedOnStyles = concordat
+
+[*.{rs,ts,js,sh,py}]
+BasedOnStyles = concordat
+concordat.RustNoRun = NO
+concordat.Acronyms = NO
+
+# README.md may use first/second person pronouns
+[README.md]
+BasedOnStyles = concordat
+concordat.Pronouns = NO
+```
+
+The Makefile gains the following wiring (merged with any existing `.PHONY`
+entries):
+
+```makefile
+VALE ?= vale
+.PHONY: vale
+
+vale: $(VALE) $(ACRONYM_SCRIPT) ## Check prose
+	$(VALE) sync
+	$(VALE) --no-global .
+```
+
 ### Customisation
 
 - `--archive-version` can be used to override the archive suffix (for example,

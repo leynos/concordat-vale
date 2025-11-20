@@ -16,6 +16,13 @@
   can also be injected via CI inputs.
 - The `zip` sub-command is focused on packaging. Other automation should be
   added as additional sub-commands rather than new binaries.
+- The `install` sub-command wires a consumer repository for Concordat by
+  fetching the latest GitHub release (unless `--release-version`/`--tag` is
+  supplied), writing the required `Packages`, `MinAlertLevel`, `Vocab`, and
+  section entries to `.vale.ini`, and ensuring a `vale` Makefile target that
+  syncs and lints. The style name is derived from the repository name with a
+  permissive `-vale` suffix strip so it remains usable when the archive is
+  named `concordat-<version>.zip`.
 - `update-tengo-map` provides a generic way to merge entries into a named Tengo
   map (defaulting to `allow`). It trims comments/blank lines in the source
   file, supports boolean, string, and numeric value parsing via `--type`, and
