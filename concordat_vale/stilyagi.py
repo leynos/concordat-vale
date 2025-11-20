@@ -205,6 +205,24 @@ def _emit_section(name: str, options: dict[str, str], lines: list[str]) -> None:
     lines.append("")
 
 
+def _emit_ordered_sections(
+    section_order: list[str], sections: dict[str, dict[str, str]], lines: list[str]
+) -> None:
+    """Emit sections in the specified order if they exist."""
+    for name in section_order:
+        if name in sections:
+            _emit_section(name, sections[name], lines)
+
+
+def _emit_remaining_sections(
+    section_order: list[str], sections: dict[str, dict[str, str]], lines: list[str]
+) -> None:
+    """Emit remaining sections not in the specified order, sorted alphabetically."""
+    for name in sorted(sections):
+        if name not in section_order:
+            _emit_section(name, sections[name], lines)
+
+
 def _render_ini(
     *,
     root_options: dict[str, str],
@@ -221,13 +239,8 @@ def _render_ini(
         "README.md",
     ]
 
-    for name in section_order:
-        if name in sections:
-            _emit_section(name, sections[name], lines)
-
-    for name in sorted(sections):
-        if name not in section_order:
-            _emit_section(name, sections[name], lines)
+    _emit_ordered_sections(section_order, sections, lines)
+    _emit_remaining_sections(section_order, sections, lines)
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -352,6 +365,39 @@ def _resolve_install_paths(
     makefile_path = _resolve_project_path(resolved_root, makefile)
     ini_path.parent.mkdir(parents=True, exist_ok=True)
     return resolved_root, ini_path, makefile_path
+
+
+def _perform_install(
+    *,
+    owner: str,
+    repo_name: str,
+    style_name: str,
+    ini_path: Path,
+    makefile_path: Path,
+    override_version: str | None,
+    override_tag: str | None,
+) -> str:
+    """Perform the installation steps and return a status message."""
+    version_str, _tag_str, packages_url = _resolve_release(
+        repo=f"{owner}/{repo_name}",
+        style_name=style_name,
+        override_version=override_version,
+        override_tag=override_tag,
+    )
+
+    _update_vale_ini(
+        ini_path=ini_path,
+        style_name=style_name,
+        packages_url=packages_url,
+    )
+    _update_makefile(makefile_path)
+
+    message = (
+        f"Installed {style_name} {version_str} from {owner}/{repo_name} into "
+        f"{ini_path} and {makefile_path}"
+    )
+    print(message)
+    return message
 
 
 def _replace_vale_target(lines: list[str]) -> list[str]:
@@ -751,27 +797,15 @@ def install_command(
         vale_ini=vale_ini,
         makefile=makefile,
     )
-
-    version_str, _tag_str, packages_url = _resolve_release(
-        repo=f"{owner}/{repo_name}",
+    return _perform_install(
+        owner=owner,
+        repo_name=repo_name,
         style_name=style_name,
+        ini_path=ini_path,
+        makefile_path=makefile_path,
         override_version=release_version,
         override_tag=tag,
     )
-
-    _update_vale_ini(
-        ini_path=ini_path,
-        style_name=style_name,
-        packages_url=packages_url,
-    )
-    _update_makefile(makefile_path)
-
-    message = (
-        f"Installed {style_name} {version_str} from {owner}/{repo_name} into "
-        f"{ini_path} and {makefile_path}"
-    )
-    print(message)
-    return message
 
 
 def main() -> None:
