@@ -280,11 +280,9 @@ def zip_command(
 
 @app.command(name="update-tengo-map")
 def update_tengo_map_command(
-    *,
-    project_root: typ.Annotated[
-        Path, Parameter(help="Root directory for resolving relative paths.")
-    ] = Path(),
-    source: typ.Annotated[Path, Parameter(help="Path to the source entries file.")],
+    source: typ.Annotated[
+        Path, Parameter(help="Path to the source entries file.")
+    ],
     dest: typ.Annotated[
         str,
         Parameter(
@@ -294,6 +292,9 @@ def update_tengo_map_command(
             )
         ),
     ],
+    project_root: typ.Annotated[
+        Path, Parameter(help="Root directory for resolving relative paths.")
+    ] = Path(),
     value_type: typ.Annotated[
         str,
         Parameter(

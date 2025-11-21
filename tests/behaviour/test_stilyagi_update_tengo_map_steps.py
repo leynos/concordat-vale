@@ -129,9 +129,7 @@ def _run_update_tengo_map(
         "update-tengo-map",
         "--project-root",
         str(project_root),
-        "--source",
         str(source_path),
-        "--dest",
         dest_argument,
         *extra_args,
     ]
