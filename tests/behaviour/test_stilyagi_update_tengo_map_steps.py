@@ -24,6 +24,8 @@ class ScenarioState(typ.TypedDict, total=False):
     tengo_path: Path
     source_path: Path
     stdout: str
+    stderr: str
+    result: subprocess.CompletedProcess[str]
 
 
 scenarios(str(FEATURE_PATH))
@@ -74,6 +76,14 @@ def numeric_source_list(scenario_state: ScenarioState) -> Path:
     source_path.write_text("value=10\nfresh=3\n", encoding="utf-8")
     scenario_state["source_path"] = source_path
     return source_path
+
+
+@given("the source list is removed")
+def remove_source_list(scenario_state: ScenarioState) -> None:
+    """Delete the source file to exercise missing-input errors."""
+    source_path = scenario_state.get("source_path")
+    if source_path and source_path.exists():
+        source_path.unlink()
 
 
 @when("I run stilyagi update-tengo-map for the allow map")
@@ -128,13 +138,43 @@ def _run_update_tengo_map(
     result = subprocess.run(  # noqa: S603
         command,
         cwd=repo_root,
-        check=True,
+        check=False,
         capture_output=True,
         text=True,
     )
     stdout_lines = [line for line in result.stdout.splitlines() if line.strip()]
     scenario_state["stdout"] = stdout_lines[-1] if stdout_lines else ""
+    scenario_state["stderr"] = result.stderr
+    scenario_state["result"] = result
     return result
+
+
+@when("I run stilyagi update-tengo-map with a missing Tengo script path")
+def run_update_tengo_map_missing_tengo(
+    repo_root: Path, scenario_state: ScenarioState
+) -> subprocess.CompletedProcess[str]:
+    """Invoke the CLI when the destination Tengo script path does not exist."""
+    missing_tengo_path = scenario_state["tengo_path"].parent / "nonexistent.tengo"
+    assert not missing_tengo_path.exists()
+    return _run_update_tengo_map(
+        repo_root=repo_root,
+        scenario_state=scenario_state,
+        dest_argument=str(missing_tengo_path),
+        extra_args=[],
+    )
+
+
+@when("I run stilyagi update-tengo-map with an invalid value type")
+def run_update_tengo_map_invalid_type(
+    repo_root: Path, scenario_state: ScenarioState
+) -> subprocess.CompletedProcess[str]:
+    """Invoke the CLI with an invalid --type argument to exercise error handling."""
+    return _run_update_tengo_map(
+        repo_root=repo_root,
+        scenario_state=scenario_state,
+        dest_argument=str(scenario_state["tengo_path"]),
+        extra_args=["--type", "foo"],
+    )
 
 
 @then("the allow map contains the boolean entries")
@@ -163,3 +203,34 @@ def command_reports_two_updates(scenario_state: ScenarioState) -> None:
 def command_reports_single_update(scenario_state: ScenarioState) -> None:
     """Assert the CLI reported a single update."""
     assert scenario_state["stdout"] == "2 entries provided, 1 updated"
+
+
+@then("the command fails with an error mentioning the source path")
+def command_fails_missing_source(scenario_state: ScenarioState) -> None:
+    """CLI should fail when the source file is absent."""
+    result = scenario_state["result"]
+    assert result.returncode != 0, "Command should fail when source is missing"
+    assert "Missing input file" in result.stderr
+
+
+@then("the command fails with an error mentioning the Tengo path")
+def command_fails_missing_tengo(scenario_state: ScenarioState) -> None:
+    """CLI should fail when the Tengo script is absent."""
+    result = scenario_state["result"]
+    assert result.returncode != 0, "Command should fail when Tengo script is missing"
+    assert "Missing Tengo script" in result.stderr
+
+
+@then("the command fails with an invalid type error")
+def command_fails_invalid_type(scenario_state: ScenarioState) -> None:
+    """CLI should fail for invalid --type values."""
+    result = scenario_state["result"]
+    assert result.returncode != 0, "Command should fail for invalid type argument"
+    assert "Invalid --type value" in result.stderr
+
+
+@then("the allow map still contains existing entries")
+def allow_map_preserves_existing(scenario_state: ScenarioState) -> None:
+    """Ensure previously present entries remain untouched."""
+    contents = scenario_state["tengo_path"].read_text(encoding="utf-8")
+    assert '"EXISTING": true,' in contents

@@ -13,7 +13,7 @@ if typ.TYPE_CHECKING:
     from pathlib import Path
 
 ENTRY_PATTERN = re.compile(
-    r'^(?P<indent>\s*)"(?P<key>[^"\\]+)"\s*:\s*(?P<value>[^,]+),'
+    r'^(?P<indent>\s*)"(?P<key>(?:[^"\\]|\\.)+)"\s*:\s*(?P<value>.*),'
     r"(?P<comment>\s*//.*)?\s*$"
 )
 
@@ -85,17 +85,20 @@ def update_tengo_map(
 
     start_idx, map_indent = _find_map_header(lines, map_name)
     end_idx = _find_map_end(lines, start_idx)
-    entry_indent = _determine_entry_indent(lines, start_idx + 1, end_idx, map_indent)
-    existing = _collect_entries(lines, start_idx + 1, end_idx)
+    existing, entry_indent = _collect_entries(
+        lines,
+        start_idx + 1,
+        end_idx,
+        map_indent,
+    )
 
-    ctx = _MapContext(
+    updated, lines = _apply_entries(
         lines=lines,
         existing=existing,
+        entries=entries,
         entry_indent=entry_indent,
         closing_idx=end_idx,
     )
-    updated = _process_entries(ctx, entries)
-    lines = ctx.lines
 
     new_text = "\n".join(lines) + "\n"
     wrote_file = new_text != text
@@ -104,52 +107,33 @@ def update_tengo_map(
     return MapUpdateResult(updated=updated, wrote_file=wrote_file)
 
 
-def _process_entries(context: _MapContext, entries: cabc.Mapping[str, object]) -> int:
-    updated = 0
-    for key, value in entries.items():
-        delta, context.closing_idx = _apply_entry_updates(
-            context,
-            key,
-            value,
-            context.closing_idx,
-        )
-        updated += delta
-    return updated
-
-
-def _apply_entry_updates(
-    context: _MapContext, key: str, value: object, closing_idx: int
-) -> tuple[int, int]:
-    if key in context.existing:
-        entry = context.existing[key]
-        if _values_equal(entry.value, value):
-            return 0, closing_idx
-        _update_existing_entry(context.lines, entry, key, value)
-        return 1, closing_idx
-
-    rendered_line = _render_entry(key, value, context.entry_indent, "")
-    _insert_new_entry(context.lines, closing_idx, rendered_line)
-    return 1, closing_idx + 1
-
-
-def _update_existing_entry(
-    lines: list[str], entry: _Entry, key: str, value: object
-) -> None:
-    lines[entry.index] = _render_entry(
-        key,
-        value,
-        entry.indent,
-        entry.comment,
-    )
-
-
-def _insert_new_entry(
+def _apply_entries(
     lines: list[str],
-    position: int,
-    rendered_line: str,
-) -> None:
-    """Insert a pre-rendered entry line at the specified position."""
-    lines.insert(position, rendered_line)
+    existing: dict[str, _Entry],
+    entries: cabc.Mapping[str, object],
+    entry_indent: str,
+    closing_idx: int,
+) -> tuple[int, list[str]]:
+    updated = 0
+    current_closing_idx = closing_idx
+    for key, value in entries.items():
+        if key in existing:
+            entry = existing[key]
+            if _values_equal(entry.value, value):
+                continue
+            lines[entry.index] = _render_entry(
+                key=key,
+                value=value,
+                indent=entry.indent,
+                comment=entry.comment,
+            )
+            updated += 1
+        else:
+            rendered_line = _render_entry(key, value, entry_indent, "")
+            lines.insert(current_closing_idx, rendered_line)
+            current_closing_idx += 1
+            updated += 1
+    return updated, lines
 
 
 @dc.dataclass(frozen=True)
@@ -157,17 +141,8 @@ class _Entry:
     index: int
     indent: str
     comment: str
+    raw_value: str
     value: object
-
-
-@dc.dataclass()
-class _MapContext:
-    """Context for processing Tengo map entries."""
-
-    lines: list[str]
-    existing: dict[str, _Entry]
-    entry_indent: str
-    closing_idx: int
 
 
 def _find_map_header(lines: list[str], map_name: str) -> tuple[int, str]:
@@ -191,42 +166,39 @@ def _find_map_end(lines: list[str], start_idx: int) -> int:
     raise TengoMapError(msg)
 
 
-def _determine_entry_indent(
+def _collect_entries(
     lines: list[str], start: int, end: int, map_indent: str
-) -> str:
-    for idx in range(start, end):
-        if match := ENTRY_PATTERN.match(lines[idx]):
-            return match.group("indent")
-    return f"{map_indent}  "
-
-
-def _collect_entries(lines: list[str], start: int, end: int) -> dict[str, _Entry]:
+) -> tuple[dict[str, _Entry], str]:
     entries: dict[str, _Entry] = {}
+    entry_indent: str | None = None
     for idx in range(start, end):
         line = lines[idx]
         match = ENTRY_PATTERN.match(line)
         if not match:
             continue
+        indent = match.group("indent")
+        if entry_indent is None:
+            entry_indent = indent
         key = match.group("key")
+        raw_value = match.group("value").strip()
         entries[key] = _Entry(
             index=idx,
-            indent=match.group("indent"),
+            indent=indent,
             comment=match.group("comment") or "",
-            value=_parse_existing_value(match.group("value").strip()),
+            raw_value=raw_value,
+            value=_parse_existing_value(raw_value),
         )
-    return entries
+
+    if entry_indent is None:
+        entry_indent = f"{map_indent}  "
+
+    return entries, entry_indent
 
 
 def _parse_token(token: str, value_type: MapValueType) -> tuple[str, object]:
     if value_type is MapValueType.TRUE:
         return token, True
 
-    key, value = _extract_key_value(token)
-    parser = _get_value_parser(value_type)
-    return key, parser(value)
-
-
-def _extract_key_value(token: str) -> tuple[str, str]:
     if "=" not in token:
         msg = "Source lines must include '=' when using typed modes."
         raise TengoMapError(msg)
@@ -238,21 +210,15 @@ def _extract_key_value(token: str) -> tuple[str, str]:
         msg = "Map keys may not be empty."
         raise TengoMapError(msg)
 
-    return key, value
+    if value_type is MapValueType.STRING:
+        return key, _parse_string_value(value)
+    if value_type is MapValueType.BOOLEAN:
+        return key, _parse_boolean_value(value)
+    if value_type is MapValueType.NUMBER:
+        return key, _parse_numeric_value(value)
 
-
-def _get_value_parser(value_type: MapValueType) -> cabc.Callable[[str], object]:
-    parsers: dict[MapValueType, cabc.Callable[[str], object]] = {
-        MapValueType.STRING: _parse_string_value,
-        MapValueType.BOOLEAN: _parse_boolean_value,
-        MapValueType.NUMBER: _parse_numeric_value,
-    }
-
-    try:
-        return parsers[value_type]
-    except KeyError as exc:  # pragma: no cover - defensive
-        msg = f"Unsupported map value type: {value_type}"
-        raise TengoMapError(msg) from exc
+    msg = f"Unsupported map value type: {value_type}"
+    raise TengoMapError(msg)
 
 
 def _parse_string_value(value: str) -> str:
@@ -289,50 +255,29 @@ def _parse_numeric_value(value: str) -> int | float:
 
 def _parse_existing_value(raw: str) -> object:
     stripped = raw.strip()
-    parsers = [
-        _try_parse_boolean,
-        _try_parse_json_string,
-        _try_parse_int,
-        _try_parse_float,
-    ]
-
-    for parser in parsers:
-        parsed = parser(stripped)
-        if parsed is not None:
-            return parsed
-    return stripped
-
-
-def _try_parse_boolean(raw: str) -> bool | None:
-    lowered = raw.lower()
+    lowered = stripped.lower()
     if lowered == "true":
         return True
     if lowered == "false":
         return False
-    return None
 
-
-def _try_parse_json_string(raw: str) -> str | None:
-    if len(raw) >= 2 and raw[0] == raw[-1] == '"':
+    if len(stripped) >= 2 and stripped[0] == stripped[-1] == '"':
         try:
-            return json.loads(raw)
+            return json.loads(stripped)
         except json.JSONDecodeError:
-            return raw.strip('"')
-    return None
+            return stripped.strip('"')
 
-
-def _try_parse_int(raw: str) -> int | None:
     try:
-        return int(raw)
+        return int(stripped)
     except ValueError:
-        return None
+        pass
 
-
-def _try_parse_float(raw: str) -> float | None:
     try:
-        return float(raw)
+        return float(stripped)
     except ValueError:
-        return None
+        pass
+
+    return stripped
 
 
 def _values_equal(existing: object, new_value: object) -> bool:
@@ -343,7 +288,7 @@ def _values_equal(existing: object, new_value: object) -> bool:
 
 def _render_entry(key: str, value: object, indent: str, comment: str) -> str:
     rendered_value = _render_value(value)
-    suffix = comment if comment else ""
+    suffix = comment or ""
     return f'{indent}"{key}": {rendered_value},{suffix}'
 
 
