@@ -233,6 +233,29 @@ def _parse_ini(path: Path) -> tuple[dict[str, str], dict[str, dict[str, str]]]:
     return root_options, sections
 
 
+def _order_section_keys(
+    merged: dict[str, str], required: dict[str, str]
+) -> dict[str, str]:
+    """Order section keys with required keys first, then remaining keys."""
+    ordered: dict[str, str] = {}
+    for key in required:
+        if key in merged:
+            ordered[key] = merged[key]
+    for key, value in merged.items():
+        if key not in ordered:
+            ordered[key] = value
+    return ordered
+
+
+def _process_required_section(
+    name: str, required: dict[str, str], sections: dict[str, dict[str, str]]
+) -> None:
+    """Process a single required section by merging and ordering keys."""
+    existing = sections.get(name, {})
+    merged = _merge_required_section(existing=existing, required=required)
+    sections[name] = _order_section_keys(merged, required)
+
+
 def _update_vale_ini(
     *,
     ini_path: Path,
@@ -267,18 +290,7 @@ def _update_vale_ini(
     }
 
     for name, required in required_sections.items():
-        existing = sections.get(name, {})
-        merged = _merge_required_section(existing=existing, required=required)
-
-        ordered: dict[str, str] = {}
-        for key in required:
-            if key in merged:
-                ordered[key] = merged[key]
-        for key, value in merged.items():
-            if key not in ordered:
-                ordered[key] = value
-
-        sections[name] = ordered
+        _process_required_section(name, required, sections)
 
     ini_path.write_text(
         _render_ini(root_options=root_options, sections=sections),

@@ -39,6 +39,19 @@ def _run_vale_command(
     )
 
 
+def _verify_synced_files(workspace: Path) -> None:
+    synced_style = workspace / "styles" / "simple-style" / "SimpleSpelling.yml"
+    assert synced_style.exists(), (
+        f"vale sync did not install the packaged style at {synced_style}"
+    )
+    synced_vocab = (
+        workspace / "styles" / "config" / "vocabularies" / "simple" / "accept.txt"
+    )
+    assert synced_vocab.exists(), (
+        f"vale sync did not unpack the vocabulary file at {synced_vocab}"
+    )
+
+
 def _run_vale_sync(env: dict[str, str], cwd: Path) -> subprocess.CompletedProcess[str]:
     """Run vale sync command."""
     return _run_vale_command(["sync"], env, cwd)
@@ -168,19 +181,6 @@ def _setup_vale_environment(
     env["VALE_HOME"] = str(vale_home)
     env["VALE_CONFIG_PATH"] = str(vale_ini)
     return env
-
-
-def _verify_synced_files(workspace: Path) -> None:
-    synced_style = workspace / "styles" / "simple-style" / "SimpleSpelling.yml"
-    assert synced_style.exists(), (
-        f"vale sync did not install the packaged style at {synced_style}"
-    )
-    synced_vocab = (
-        workspace / "styles" / "config" / "vocabularies" / "simple" / "accept.txt"
-    )
-    assert synced_vocab.exists(), (
-        f"vale sync did not unpack the vocabulary file at {synced_vocab}"
-    )
 
 
 @pytest.mark.slow
