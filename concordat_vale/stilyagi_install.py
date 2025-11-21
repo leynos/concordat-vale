@@ -237,13 +237,10 @@ def _order_section_keys(
     merged: dict[str, str], required: dict[str, str]
 ) -> dict[str, str]:
     """Order section keys with required keys first, then remaining keys."""
-    ordered: dict[str, str] = {}
-    for key in required:
-        if key in merged:
-            ordered[key] = merged[key]
-    for key, value in merged.items():
-        if key not in ordered:
-            ordered[key] = value
+    # Add required keys that exist in merged
+    ordered: dict[str, str] = {key: merged[key] for key in required if key in merged}
+    # Add remaining keys from merged that aren't already included
+    ordered.update({key: value for key, value in merged.items() if key not in ordered})
     return ordered
 
 
