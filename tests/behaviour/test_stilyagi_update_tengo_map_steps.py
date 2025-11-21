@@ -120,6 +120,7 @@ def _run_update_tengo_map(
     dest_argument: str,
     extra_args: list[str],
 ) -> subprocess.CompletedProcess[str]:
+    """Execute the update-tengo-map CLI and capture output in scenario state."""
     project_root = scenario_state["project_root"]
     source_path = scenario_state["source_path"]
     command = [
@@ -133,7 +134,7 @@ def _run_update_tengo_map(
         dest_argument,
         *extra_args,
     ]
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(  # noqa: S603  # Controlled arg list in tests; not user-supplied
         command,
         cwd=repo_root,
         check=False,
@@ -153,7 +154,9 @@ def run_update_tengo_map_missing_tengo(
 ) -> subprocess.CompletedProcess[str]:
     """Invoke the CLI when the destination Tengo script path does not exist."""
     missing_tengo_path = scenario_state["tengo_path"].parent / "nonexistent.tengo"
-    assert not missing_tengo_path.exists()
+    assert not missing_tengo_path.exists(), (
+        "Test precondition violated: missing_tengo_path unexpectedly exists"
+    )
     return _run_update_tengo_map(
         repo_root=repo_root,
         scenario_state=scenario_state,
@@ -179,8 +182,8 @@ def run_update_tengo_map_invalid_type(
 def allow_map_contains_entries(scenario_state: ScenarioState) -> None:
     """Verify that the allow map was updated."""
     contents = scenario_state["tengo_path"].read_text(encoding="utf-8")
-    assert '"ALPHA": true,' in contents
-    assert '"BETA": true,' in contents
+    assert '"ALPHA": true,' in contents, "ALPHA entry missing from allow map"
+    assert '"BETA": true,' in contents, "BETA entry missing from allow map"
 
 
 @then("the exceptions map contains the numeric entries")
@@ -231,4 +234,4 @@ def command_fails_invalid_type(scenario_state: ScenarioState) -> None:
 def allow_map_preserves_existing(scenario_state: ScenarioState) -> None:
     """Ensure previously present entries remain untouched."""
     contents = scenario_state["tengo_path"].read_text(encoding="utf-8")
-    assert '"EXISTING": true,' in contents
+    assert '"EXISTING": true,' in contents, "Existing entry should remain in allow map"

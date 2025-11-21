@@ -243,8 +243,8 @@ def test_update_tengo_map_noop_when_values_unchanged(tmp_path: Path) -> None:
     )
 
     assert tengo.read_text(encoding="utf-8") == expected
-    assert result.updated == 0
-    assert result.wrote_file is False
+    assert result.updated == 0, "result.updated should be zero for no-op"
+    assert result.wrote_file is False, "result.wrote_file should indicate no write"
 
 
 def test_update_tengo_map_raises_when_map_missing(tmp_path: Path) -> None:
@@ -279,6 +279,6 @@ def test_update_tengo_map_inserts_into_empty_map(tmp_path: Path) -> None:
         """
     )
 
-    assert tengo.read_text(encoding="utf-8") == expected
-    assert result.updated == 1
-    assert result.wrote_file is True
+    assert tengo.read_text(encoding="utf-8") == expected, "entry should be inserted"
+    assert result.updated == 1, "result.updated should count the inserted entry"
+    assert result.wrote_file is True, "result.wrote_file should reflect the change"

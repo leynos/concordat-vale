@@ -286,7 +286,7 @@ def update_tengo_map_command(
         Parameter(
             help=(
                 "Tengo script path, optionally suffixed with ::mapname."
-                " Defaults to ::" + DEFAULT_MAP_NAME
+                f" When omitted, the {DEFAULT_MAP_NAME!r} map is used."
             )
         ),
     ],

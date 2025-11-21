@@ -5,7 +5,8 @@ entries into existing maps, and preserving raw literal formatting when values
 are unchanged. It is used by the stilyagi CLI and unit tests to keep packaged
 Vale scripts up to date with project-specific allow lists.
 
-Examples:
+Examples
+--------
     from pathlib import Path
     from concordat_vale.tengo_map import parse_source_entries, update_tengo_map
 
@@ -159,6 +160,7 @@ def _apply_entries(
     entry_indent: str,
     closing_idx: int,
 ) -> tuple[int, list[str]]:
+    """Update existing entries or insert new ones into the map lines."""
     updated = 0
     current_closing_idx = closing_idx
     for key, value in entries.items():
@@ -255,15 +257,17 @@ def _parse_token(token: str, value_type: MapValueType) -> tuple[str, object]:
         msg = "Map keys may not be empty."
         raise TengoMapError(msg)
 
-    if value_type is MapValueType.STRING:
-        return key, _parse_string_value(value)
-    if value_type is MapValueType.BOOLEAN:
-        return key, _parse_boolean_value(value)
-    if value_type is MapValueType.NUMBER:
-        return key, _parse_numeric_value(value)
+    parser = {
+        MapValueType.STRING: _parse_string_value,
+        MapValueType.BOOLEAN: _parse_boolean_value,
+        MapValueType.NUMBER: _parse_numeric_value,
+    }.get(value_type)
 
-    msg = f"Unsupported map value type: {value_type}"
-    raise TengoMapError(msg)
+    if parser is None:  # pragma: no cover - defensive
+        msg = f"Unsupported map value type: {value_type}"
+        raise TengoMapError(msg)
+
+    return key, parser(value)
 
 
 def _parse_string_value(value: str) -> str:
@@ -338,6 +342,7 @@ def _render_entry(key: str, value: object, indent: str, comment: str) -> str:
 
 
 def _render_value(value: object) -> str:
+    """Render a Python value into Tengo literal syntax."""
     if isinstance(value, bool):
         return "true" if value else "false"
     if isinstance(value, (int, float)):
