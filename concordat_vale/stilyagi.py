@@ -280,9 +280,7 @@ def zip_command(
 
 @app.command(name="update-tengo-map")
 def update_tengo_map_command(
-    source: typ.Annotated[
-        Path, Parameter(help="Path to the source entries file.")
-    ],
+    source: typ.Annotated[Path, Parameter(help="Path to the source entries file.")],
     dest: typ.Annotated[
         str,
         Parameter(

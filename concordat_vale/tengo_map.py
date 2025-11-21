@@ -1,4 +1,26 @@
-"""Utilities for updating Tengo map literals."""
+"""Utilities for updating Tengo map literals.
+
+This module provides helpers for parsing flat Tengo map entries, merging new
+entries into existing maps, and preserving raw literal formatting when values
+are unchanged. It is used by the stilyagi CLI and unit tests to keep packaged
+Vale scripts up to date with project-specific allow lists.
+
+Examples:
+    from pathlib import Path
+    from concordat_vale.tengo_map import parse_source_entries, update_tengo_map
+
+    entries_provided, entries = parse_source_entries(
+        Path("acronyms.txt"),
+        MapValueType.TRUE,
+    )
+    result = update_tengo_map(
+        Path("AcronymsFirstUse.tengo"),
+        "allow",
+        entries,
+    )
+    # AcronymsFirstUse.tengo rewritten with provided entries; result.updated
+    # reports how many items changed.
+"""
 
 from __future__ import annotations
 
@@ -42,7 +64,30 @@ class MapUpdateResult:
 def parse_source_entries(
     source: Path, value_type: MapValueType
 ) -> tuple[int, dict[str, object]]:
-    """Parse source lines into key/value pairs honouring inline comments."""
+    """Parse a source file into key/value pairs.
+
+    Parameters
+    ----------
+    source : Path
+        Path to the input file containing map entries.
+    value_type : MapValueType
+        Parsing mode that controls how values are coerced.
+
+    Returns
+    -------
+    tuple[int, dict[str, object]]
+        entries_provided is the number of parsed lines; parsed maps keys to
+        their parsed values.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the source file does not exist.
+    TengoMapError
+        For malformed tokens or unsupported value types.
+    OSError
+        If reading the source file fails.
+    """
     if not source.exists():
         msg = f"Missing input file: {source}"
         raise FileNotFoundError(msg)
