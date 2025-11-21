@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses as dc
 import json
 import os
 import re
@@ -367,34 +368,42 @@ def _resolve_install_paths(
     return resolved_root, ini_path, makefile_path
 
 
+@dc.dataclass(frozen=True)
+class InstallConfig:
+    """Configuration for installing a Concordat style."""
+
+    owner: str
+    repo_name: str
+    style_name: str
+    ini_path: Path
+    makefile_path: Path
+    override_version: str | None = None
+    override_tag: str | None = None
+
+
 def _perform_install(
     *,
-    owner: str,
-    repo_name: str,
-    style_name: str,
-    ini_path: Path,
-    makefile_path: Path,
-    override_version: str | None,
-    override_tag: str | None,
+    config: InstallConfig,
 ) -> str:
-    """Perform the installation steps and return a status message."""
+    """Perform the installation steps using the supplied configuration."""
     version_str, _tag_str, packages_url = _resolve_release(
-        repo=f"{owner}/{repo_name}",
-        style_name=style_name,
-        override_version=override_version,
-        override_tag=override_tag,
+        repo=f"{config.owner}/{config.repo_name}",
+        style_name=config.style_name,
+        override_version=config.override_version,
+        override_tag=config.override_tag,
     )
 
     _update_vale_ini(
-        ini_path=ini_path,
-        style_name=style_name,
+        ini_path=config.ini_path,
+        style_name=config.style_name,
         packages_url=packages_url,
     )
-    _update_makefile(makefile_path)
+    _update_makefile(config.makefile_path)
 
     message = (
-        f"Installed {style_name} {version_str} from {owner}/{repo_name} into "
-        f"{ini_path} and {makefile_path}"
+        f"Installed {config.style_name} {version_str} from "
+        f"{config.owner}/{config.repo_name} into {config.ini_path} and "
+        f"{config.makefile_path}"
     )
     print(message)
     return message

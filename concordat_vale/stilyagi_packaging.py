@@ -2,10 +2,29 @@
 
 from __future__ import annotations
 
+import dataclasses as dc
 import tomllib
 from importlib import metadata
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
+
+
+@dc.dataclass
+class PackagingPaths:
+    """Encapsulates file system paths for packaging operation."""
+
+    project_root: Path
+    styles_path: Path
+    output_dir: Path
+
+
+@dc.dataclass
+class StyleConfig:
+    """Encapsulates style selection and configuration options."""
+
+    explicit_styles: list[str] | None = None
+    vocabulary: str | None = None
+    ini_styles_path: str = "styles"
 
 PACKAGE_NAME = "concordat-vale"
 DEFAULT_OUTPUT_DIR = Path("dist")
@@ -120,27 +139,23 @@ def _add_styles_to_archive(
 
 def package_styles(
     *,
-    project_root: Path,
-    styles_path: Path,
-    output_dir: Path,
+    paths: PackagingPaths,
+    config: StyleConfig,
     version: str,
-    explicit_styles: list[str] | None,
-    vocabulary: str | None,
-    ini_styles_path: str = "styles",
     force: bool,
 ) -> Path:
     """Create a Vale-ready ZIP archive containing styles and config."""
-    resolved_root = project_root.expanduser().resolve()
-    resolved_styles = _resolve_project_path(resolved_root, styles_path)
+    resolved_root = paths.project_root.expanduser().resolve()
+    resolved_styles = _resolve_project_path(resolved_root, paths.styles_path)
     if not resolved_styles.exists():
         msg = f"Styles directory {resolved_styles} does not exist"
         raise FileNotFoundError(msg)
 
-    styles = _discover_style_names(resolved_styles, explicit_styles)
-    vocab = _select_vocabulary(resolved_styles, vocabulary)
-    ini_contents = _build_ini(ini_styles_path, vocab)
+    styles = _discover_style_names(resolved_styles, config.explicit_styles)
+    vocab = _select_vocabulary(resolved_styles, config.vocabulary)
+    ini_contents = _build_ini(config.ini_styles_path, vocab)
 
-    resolved_output = _resolve_project_path(resolved_root, output_dir)
+    resolved_output = _resolve_project_path(resolved_root, paths.output_dir)
     resolved_output.mkdir(parents=True, exist_ok=True)
     filename_stem = "-".join(styles)
     archive_path = resolved_output / f"{filename_stem}-{version}.zip"
@@ -150,7 +165,7 @@ def package_styles(
 
     archive_dir = Path(f"{filename_stem}-{version}")
     ini_member = archive_dir / ".vale.ini"
-    archive_root = archive_dir / Path(ini_styles_path)
+    archive_root = archive_dir / Path(config.ini_styles_path)
     with ZipFile(archive_path, mode="w", compression=ZIP_DEFLATED) as archive:
         archive.writestr(str(ini_member), ini_contents)
         _add_styles_to_archive(
@@ -167,6 +182,8 @@ __all__ = [
     "DEFAULT_OUTPUT_DIR",
     "DEFAULT_STYLES_PATH",
     "PACKAGE_NAME",
+    "PackagingPaths",
+    "StyleConfig",
     "_resolve_project_path",
     "_resolve_version",
     "package_styles",

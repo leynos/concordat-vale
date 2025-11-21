@@ -21,6 +21,7 @@ from .tengo_map import (
 )
 
 from .stilyagi_install import (
+    InstallConfig,
     _parse_repo_reference,
     _perform_install,
     _resolve_install_paths,
@@ -31,6 +32,8 @@ from .stilyagi_packaging import (
     DEFAULT_OUTPUT_DIR,
     DEFAULT_STYLES_PATH,
     _resolve_project_path,
+    PackagingPaths,
+    StyleConfig,
     _resolve_version,
     package_styles,
 )
@@ -120,14 +123,20 @@ def zip_command(
     ] = False,
 ) -> str:
     """CLI entry point that writes the archive path to stdout."""
-    archive_path = package_styles(
+    paths = PackagingPaths(
         project_root=project_root,
         styles_path=styles_path,
         output_dir=output_dir,
-        version=_resolve_version(project_root.expanduser().resolve(), archive_version),
+    )
+    config = StyleConfig(
         explicit_styles=style,
         vocabulary=vocabulary,
         ini_styles_path=ini_styles_path,
+    )
+    archive_path = package_styles(
+        paths=paths,
+        config=config,
+        version=_resolve_version(project_root.expanduser().resolve(), archive_version),
         force=force,
     )
     print(archive_path)
@@ -238,7 +247,7 @@ def install_command(
         vale_ini=vale_ini,
         makefile=makefile,
     )
-    return _perform_install(
+    config = InstallConfig(
         owner=owner,
         repo_name=repo_name,
         style_name=style_name,
@@ -247,6 +256,7 @@ def install_command(
         override_version=release_version,
         override_tag=tag,
     )
+    return _perform_install(config=config)
 
 
 def main() -> None:
@@ -255,6 +265,8 @@ def main() -> None:
 
 
 __all__ = [
+    "PackagingPaths",
+    "StyleConfig",
     "_update_makefile",
     "_update_vale_ini",
     "app",

@@ -14,7 +14,11 @@ from pathlib import Path
 
 import pytest
 
-from concordat_vale.stilyagi import package_styles
+from concordat_vale.stilyagi_packaging import (
+    PackagingPaths,
+    StyleConfig,
+    package_styles,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VALE_BIN = shutil.which("vale")
@@ -82,12 +86,13 @@ def test_vale_sync_accepts_packaged_archive(
     base_url, serve_dir = http_server
     version = "sync-test"
     archive_path = package_styles(
-        project_root=REPO_ROOT,
-        styles_path=Path("styles"),
-        output_dir=tmp_path,
+        paths=PackagingPaths(
+            project_root=REPO_ROOT,
+            styles_path=Path("styles"),
+            output_dir=tmp_path,
+        ),
+        config=StyleConfig(),
         version=version,
-        explicit_styles=None,
-        vocabulary=None,
         force=True,
     )
     served_archive = serve_dir / archive_path.name
@@ -196,12 +201,13 @@ def test_vale_lint_succeeds_after_installing_packaged_style(
     _create_test_style_and_vocab(styles_root)
 
     archive_path = package_styles(
-        project_root=project_root,
-        styles_path=Path("styles"),
-        output_dir=tmp_path,
+        paths=PackagingPaths(
+            project_root=project_root,
+            styles_path=Path("styles"),
+            output_dir=tmp_path,
+        ),
+        config=StyleConfig(),
         version="lint-test",
-        explicit_styles=None,
-        vocabulary=None,
         force=True,
     )
     served_archive = serve_dir / archive_path.name
