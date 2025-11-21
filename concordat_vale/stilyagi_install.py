@@ -67,6 +67,24 @@ def _select_tag_and_version(payload: dict[str, typ.Any]) -> tuple[str, str]:
     return clean_tag, _strip_version_prefix(clean_tag)
 
 
+def _find_asset_by_name(assets: list[typ.Any], expected_name: str) -> str | None:
+    """Find an asset matching the expected name exactly."""
+    for asset in assets:
+        name = asset.get("name") if isinstance(asset, dict) else None
+        if name == expected_name:
+            return expected_name
+    return None
+
+
+def _find_zip_asset(assets: list[typ.Any]) -> str | None:
+    """Find any asset with a .zip extension."""
+    for asset in assets:
+        name = asset.get("name") if isinstance(asset, dict) else None
+        if isinstance(name, str) and name.endswith(".zip"):
+            return name
+    return None
+
+
 def _pick_asset_name(
     *,
     payload: dict[str, typ.Any],
@@ -74,16 +92,15 @@ def _pick_asset_name(
 ) -> str:
     """Prefer *expected_name* when present, otherwise fall back to any .zip asset."""
     assets = payload.get("assets")
-    if isinstance(assets, list):
-        for asset in assets:
-            name = asset.get("name") if isinstance(asset, dict) else None
-            if name == expected_name:
-                return expected_name
-        for asset in assets:
-            name = asset.get("name") if isinstance(asset, dict) else None
-            if isinstance(name, str) and name.endswith(".zip"):
-                return name
-    return expected_name
+    if not isinstance(assets, list):
+        return expected_name
+
+    found = _find_asset_by_name(assets, expected_name)
+    if found:
+        return found
+
+    found = _find_zip_asset(assets)
+    return found if found else expected_name
 
 
 def _build_packages_url(repo: str, tag: str, asset: str) -> str:

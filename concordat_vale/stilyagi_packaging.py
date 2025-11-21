@@ -65,29 +65,37 @@ def _resolve_version(root: Path, override: str | None) -> str:
         return "0.0.0+unknown"
 
 
-def _discover_style_names(styles_root: Path, explicit: list[str] | None) -> list[str]:
-    if explicit:
-        unique = sorted(dict.fromkeys(explicit))
-        missing = [name for name in unique if not (styles_root / name).is_dir()]
-        if missing:
-            missing_list = ", ".join(missing)
-            msg = f"Styles not found under {styles_root}: {missing_list}"
-            raise FileNotFoundError(msg)
-        return unique
+def _validate_explicit_styles(styles_root: Path, explicit: list[str]) -> list[str]:
+    """Validate that explicitly requested styles exist."""
+    unique = sorted(dict.fromkeys(explicit))
+    missing = [name for name in unique if not (styles_root / name).is_dir()]
+    if missing:
+        missing_list = ", ".join(missing)
+        msg = f"Styles not found under {styles_root}: {missing_list}"
+        raise FileNotFoundError(msg)
+    return unique
 
-    discovered: list[str] = []
-    for entry in sorted(styles_root.iterdir()):
-        if not entry.is_dir():
-            continue
-        if entry.name == "config":
-            continue
-        discovered.append(entry.name)
+
+def _discover_available_styles(styles_root: Path) -> list[str]:
+    """Discover all available styles by scanning the styles directory."""
+    discovered = [
+        entry.name
+        for entry in sorted(styles_root.iterdir())
+        if entry.is_dir() and entry.name != "config"
+    ]
 
     if not discovered:
         msg = f"No styles found under {styles_root}"
         raise RuntimeError(msg)
 
     return discovered
+
+
+def _discover_style_names(styles_root: Path, explicit: list[str] | None) -> list[str]:
+    """Return explicit styles if provided, otherwise discover all available styles."""
+    if explicit:
+        return _validate_explicit_styles(styles_root, explicit)
+    return _discover_available_styles(styles_root)
 
 
 def _select_vocabulary(styles_root: Path, override: str | None) -> str | None:
