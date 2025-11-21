@@ -3,7 +3,10 @@
 This module provides helpers for parsing flat Tengo map entries, merging new
 entries into existing maps, and preserving raw literal formatting when values
 are unchanged. It is used by the stilyagi CLI and unit tests to keep packaged
-Vale scripts up to date with project-specific allow lists.
+Vale scripts up to date with project-specific allow lists. The helpers expect
+simple, flat maps where each entry ends with a trailing comma and braces do not
+appear inside string values or comments; more complex Tengo structures are not
+supported.
 
 Examples
 --------
@@ -25,6 +28,7 @@ Examples
 
 from __future__ import annotations
 
+import collections.abc as cabc
 import dataclasses as dc
 import enum
 import json
@@ -32,7 +36,6 @@ import re
 import typing as typ
 
 if typ.TYPE_CHECKING:
-    import collections.abc as cabc
     from pathlib import Path
 
 ENTRY_PATTERN = re.compile(
@@ -118,7 +121,14 @@ def update_tengo_map(
     map_name: str,
     entries: cabc.Mapping[str, object],
 ) -> MapUpdateResult:
-    """Update or append map entries inside a Tengo script."""
+    """Update or append map entries inside a Tengo script.
+
+    Notes
+    -----
+    Expects a flat map where every entry ends with a trailing comma and where
+    braces do not appear inside string literals or comments. More complex
+    Tengo structures are not supported.
+    """
     if not tengo_path.exists():
         msg = f"Missing Tengo script: {tengo_path}"
         raise FileNotFoundError(msg)
@@ -138,13 +148,12 @@ def update_tengo_map(
         map_indent,
     )
 
-    updated, lines = _apply_entries(
+    ctx = _EntryUpdateContext(
         lines=lines,
         existing=existing,
-        entries=entries,
         entry_indent=entry_indent,
-        closing_idx=end_idx,
     )
+    updated, lines = _apply_entries(ctx, entries, end_idx)
 
     new_text = "\n".join(lines) + "\n"
     wrote_file = new_text != text
@@ -154,21 +163,17 @@ def update_tengo_map(
 
 
 def _apply_entries(
-    lines: list[str],
-    existing: dict[str, _Entry],
-    entries: cabc.Mapping[str, object],
-    entry_indent: str,
-    closing_idx: int,
+    ctx: _EntryUpdateContext, entries: cabc.Mapping[str, object], closing_idx: int
 ) -> tuple[int, list[str]]:
     """Update existing entries or insert new ones into the map lines."""
     updated = 0
     current_closing_idx = closing_idx
     for key, value in entries.items():
-        if key in existing:
-            entry = existing[key]
+        if key in ctx.existing:
+            entry = ctx.existing[key]
             if _values_equal(entry.value, value):
                 continue
-            lines[entry.index] = _render_entry(
+            ctx.lines[entry.index] = _render_entry(
                 key=key,
                 value=value,
                 indent=entry.indent,
@@ -176,11 +181,11 @@ def _apply_entries(
             )
             updated += 1
         else:
-            rendered_line = _render_entry(key, value, entry_indent, "")
-            lines.insert(current_closing_idx, rendered_line)
+            rendered_line = _render_entry(key, value, ctx.entry_indent, "")
+            ctx.lines.insert(current_closing_idx, rendered_line)
             current_closing_idx += 1
             updated += 1
-    return updated, lines
+    return updated, ctx.lines
 
 
 @dc.dataclass(frozen=True)
@@ -192,7 +197,20 @@ class _Entry:
     value: object
 
 
+@dc.dataclass()
+class _EntryUpdateContext:
+    """Context for applying updates to Tengo map entries."""
+
+    lines: list[str]
+    existing: dict[str, _Entry]
+    entry_indent: str
+
+
 def _find_map_header(lines: list[str], map_name: str) -> tuple[int, str]:
+    """Locate the map header line and return its index and indentation.
+
+    Assumes a flat map layout without nested braces inside strings or comments.
+    """
     pattern = re.compile(rf"^(?P<indent>\s*){re.escape(map_name)}\s*:=\s*\{{\s*$")
     for idx, line in enumerate(lines):
         if match := pattern.match(line):
@@ -202,6 +220,10 @@ def _find_map_header(lines: list[str], map_name: str) -> tuple[int, str]:
 
 
 def _find_map_end(lines: list[str], start_idx: int) -> int:
+    """Find the closing brace index by tracking brace depth from the start.
+
+    Counts braces naively; braces inside strings or comments will affect depth.
+    """
     depth = 1
     for idx in range(start_idx + 1, len(lines)):
         line = lines[idx]
@@ -216,6 +238,10 @@ def _find_map_end(lines: list[str], start_idx: int) -> int:
 def _collect_entries(
     lines: list[str], start: int, end: int, map_indent: str
 ) -> tuple[dict[str, _Entry], str]:
+    """Parse existing map entries and determine entry indentation.
+
+    Expects each entry to end with a trailing comma and avoids nested maps.
+    """
     entries: dict[str, _Entry] = {}
     entry_indent: str | None = None
     for idx in range(start, end):
@@ -271,6 +297,7 @@ def _parse_token(token: str, value_type: MapValueType) -> tuple[str, object]:
 
 
 def _parse_string_value(value: str) -> str:
+    """Parse a string value, handling JSON-quoted and unquoted formats."""
     value = value.strip()
     if len(value) >= 2 and value[0] == value[-1] == '"':
         try:
@@ -281,6 +308,7 @@ def _parse_string_value(value: str) -> str:
 
 
 def _parse_boolean_value(value: str) -> bool:
+    """Parse a boolean value from case-insensitive true or false."""
     lowered = value.strip().lower()
     if lowered == "true":
         return True
@@ -291,6 +319,7 @@ def _parse_boolean_value(value: str) -> bool:
 
 
 def _parse_numeric_value(value: str) -> int | float:
+    """Parse a numeric value, attempting integer then float."""
     trimmed = value.strip()
     try:
         return int(trimmed)
@@ -303,6 +332,7 @@ def _parse_numeric_value(value: str) -> int | float:
 
 
 def _parse_existing_value(raw: str) -> object:
+    """Parse an existing map value from Tengo syntax into a Python type."""
     stripped = raw.strip()
     lowered = stripped.lower()
     if lowered == "true":
@@ -330,6 +360,7 @@ def _parse_existing_value(raw: str) -> object:
 
 
 def _values_equal(existing: object, new_value: object) -> bool:
+    """Check semantic equality between existing and new values."""
     if isinstance(existing, (int, float)) and isinstance(new_value, (int, float)):
         return float(existing) == float(new_value)
     return existing == new_value
