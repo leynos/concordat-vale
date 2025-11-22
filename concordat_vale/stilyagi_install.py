@@ -67,24 +67,6 @@ def _select_tag_and_version(payload: dict[str, typ.Any]) -> tuple[str, str]:
     return clean_tag, _strip_version_prefix(clean_tag)
 
 
-def _find_asset_by_name(assets: list[typ.Any], expected_name: str) -> str | None:
-    """Find an asset matching the expected name exactly."""
-    for asset in assets:
-        name = asset.get("name") if isinstance(asset, dict) else None
-        if name == expected_name:
-            return expected_name
-    return None
-
-
-def _find_zip_asset(assets: list[typ.Any]) -> str | None:
-    """Find any asset with a .zip extension."""
-    for asset in assets:
-        name = asset.get("name") if isinstance(asset, dict) else None
-        if isinstance(name, str) and name.endswith(".zip"):
-            return name
-    return None
-
-
 def _pick_asset_name(
     *,
     payload: dict[str, typ.Any],
@@ -95,12 +77,17 @@ def _pick_asset_name(
     if not isinstance(assets, list):
         return expected_name
 
-    found = _find_asset_by_name(assets, expected_name)
-    if found:
-        return found
+    for asset in assets:
+        name = asset.get("name") if isinstance(asset, dict) else None
+        if name == expected_name:
+            return expected_name
 
-    found = _find_zip_asset(assets)
-    return found if found else expected_name
+    for asset in assets:
+        name = asset.get("name") if isinstance(asset, dict) else None
+        if isinstance(name, str) and name.endswith(".zip"):
+            return name
+
+    return expected_name
 
 
 def _build_packages_url(repo: str, tag: str, asset: str) -> str:
@@ -132,14 +119,6 @@ def _resolve_release(
     return version, tag, packages_url
 
 
-def _merge_required_section(
-    *, existing: dict[str, str], required: dict[str, str]
-) -> dict[str, str]:
-    merged = existing.copy()
-    merged.update(required)
-    return merged
-
-
 def _render_root_options(
     root_options: dict[str, str], root_priority: tuple[str, ...]
 ) -> list[str]:
@@ -169,24 +148,6 @@ def _emit_section(name: str, options: dict[str, str], lines: list[str]) -> None:
     lines.append("")
 
 
-def _emit_ordered_sections(
-    section_order: list[str], sections: dict[str, dict[str, str]], lines: list[str]
-) -> None:
-    """Emit sections in the specified order if they exist."""
-    for name in section_order:
-        if name in sections:
-            _emit_section(name, sections[name], lines)
-
-
-def _emit_remaining_sections(
-    section_order: list[str], sections: dict[str, dict[str, str]], lines: list[str]
-) -> None:
-    """Emit remaining sections not in the specified order, sorted alphabetically."""
-    for name in sorted(sections):
-        if name not in section_order:
-            _emit_section(name, sections[name], lines)
-
-
 def _render_ini(
     *,
     root_options: dict[str, str],
@@ -202,9 +163,14 @@ def _render_ini(
         "*.{rs,ts,js,sh,py}",
         "README.md",
     ]
-
-    _emit_ordered_sections(section_order, sections, lines)
-    _emit_remaining_sections(section_order, sections, lines)
+    seen: set[str] = set()
+    for name in section_order:
+        if name in sections:
+            _emit_section(name, sections[name], lines)
+            seen.add(name)
+    for name in sorted(sections):
+        if name not in seen:
+            _emit_section(name, sections[name], lines)
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -233,24 +199,14 @@ def _parse_ini(path: Path) -> tuple[dict[str, str], dict[str, dict[str, str]]]:
     return root_options, sections
 
 
-def _order_section_keys(
-    merged: dict[str, str], required: dict[str, str]
+def _merge_and_order_section(
+    existing: dict[str, str], required: dict[str, str]
 ) -> dict[str, str]:
-    """Order section keys with required keys first, then remaining keys."""
-    # Add required keys that exist in merged
+    """Merge existing with required and order required keys first."""
+    merged = existing.copy() | required
     ordered: dict[str, str] = {key: merged[key] for key in required if key in merged}
-    # Add remaining keys from merged that aren't already included
-    ordered.update({key: value for key, value in merged.items() if key not in ordered})
+    ordered |= {key: value for key, value in merged.items() if key not in ordered}
     return ordered
-
-
-def _process_required_section(
-    name: str, required: dict[str, str], sections: dict[str, dict[str, str]]
-) -> None:
-    """Process a single required section by merging and ordering keys."""
-    existing = sections.get(name, {})
-    merged = _merge_required_section(existing=existing, required=required)
-    sections[name] = _order_section_keys(merged, required)
 
 
 def _update_vale_ini(
@@ -287,7 +243,7 @@ def _update_vale_ini(
     }
 
     for name, required in required_sections.items():
-        _process_required_section(name, required, sections)
+        sections[name] = _merge_and_order_section(sections.get(name, {}), required)
 
     ini_path.write_text(
         _render_ini(root_options=root_options, sections=sections),
@@ -306,37 +262,34 @@ def _ensure_variable(lines: list[str], key: str, assignment: str) -> list[str]:
 def _ensure_phony(lines: list[str], target: str) -> list[str]:
     """Add *target* to the first .PHONY line or create one."""
     for idx, line in enumerate(lines):
-        if line.startswith(".PHONY"):
+        if line.lstrip().startswith(".PHONY"):
             if target in line.split():
                 return lines
-            updated = line.rstrip() + f" {target}"
+            updated = f"{line.rstrip()} {target}"
             return [*lines[:idx], updated, *lines[idx + 1 :]]
     return [f".PHONY: {target}"] + ([""] if lines else []) + lines
 
 
-def _find_target_start(lines: list[str], target_header: str) -> int | None:
-    """Return the index of the first line starting with ``target_header``."""
-    for idx, line in enumerate(lines):
-        if line.startswith(target_header):
-            return idx
-    return None
+def _find_target_bounds(lines: list[str], target_header: str) -> tuple[int | None, int]:
+    """Return (start_idx, end_idx) for target_header, or (None, len(lines))."""
+    start_idx = next(
+        (idx for idx, line in enumerate(lines) if line.startswith(target_header)),
+        None,
+    )
+    if start_idx is None:
+        return None, len(lines)
 
-
-def _find_target_end(lines: list[str], start_idx: int) -> int:
-    """Locate the end of the target block beginning at ``start_idx``."""
     end_idx = start_idx + 1
     while end_idx < len(lines) and lines[end_idx].startswith("\t"):
         end_idx += 1
     while end_idx < len(lines) and lines[end_idx].strip() == "":
         end_idx += 1
-    return end_idx
+    return start_idx, end_idx
 
 
 def _append_with_spacing(lines: list[str], recipe: list[str]) -> list[str]:
     """Append ``recipe`` to ``lines`` preserving a single blank separator."""
-    if lines and lines[-1].strip():
-        return [*lines, "", *recipe]
-    return lines + recipe
+    return [*lines, "", *recipe] if lines and lines[-1].strip() else lines + recipe
 
 
 def _replace_vale_target(lines: list[str]) -> list[str]:
@@ -346,11 +299,9 @@ def _replace_vale_target(lines: list[str]) -> list[str]:
         "\t$(VALE) sync",
         "\t$(VALE) --no-global .",
     ]
-    start_idx = _find_target_start(lines, "vale:")
+    start_idx, end_idx = _find_target_bounds(lines, "vale:")
     if start_idx is None:
         return _append_with_spacing(lines, recipe)
-
-    end_idx = _find_target_end(lines, start_idx)
     return lines[:start_idx] + recipe + lines[end_idx:]
 
 
@@ -371,12 +322,12 @@ def _update_makefile(makefile_path: Path) -> None:
 def _parse_repo_reference(repo: str) -> tuple[str, str, str]:
     """Parse and validate a GitHub repository reference."""
     if repo.count("/") != 1:
-        msg = "Repository reference must be in the form owner/name"
+        msg = "Repository reference must be in the form 'owner/name'."
         raise ValueError(msg)
 
     owner, repo_name = (part.strip() for part in repo.split("/", maxsplit=1))
     if not owner or not repo_name:
-        msg = "Repository reference must include both owner and name"
+        msg = "Repository reference must be in the form 'owner/name'."
         raise ValueError(msg)
 
     style_name = _style_name_for_repo(repo_name)

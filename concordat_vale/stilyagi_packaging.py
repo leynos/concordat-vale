@@ -26,6 +26,7 @@ class StyleConfig:
     vocabulary: str | None = None
     ini_styles_path: str = "styles"
 
+
 PACKAGE_NAME = "concordat-vale"
 DEFAULT_OUTPUT_DIR = Path("dist")
 DEFAULT_STYLES_PATH = Path("styles")
@@ -68,8 +69,7 @@ def _resolve_version(root: Path, override: str | None) -> str:
 def _validate_explicit_styles(styles_root: Path, explicit: list[str]) -> list[str]:
     """Validate that explicitly requested styles exist."""
     unique = sorted(dict.fromkeys(explicit))
-    missing = [name for name in unique if not (styles_root / name).is_dir()]
-    if missing:
+    if missing := [name for name in unique if not (styles_root / name).is_dir()]:
         missing_list = ", ".join(missing)
         msg = f"Styles not found under {styles_root}: {missing_list}"
         raise FileNotFoundError(msg)

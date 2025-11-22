@@ -43,7 +43,7 @@ uv run --with https://github.com/leynos/concordat-vale.git \
   stilyagi install leynos/concordat-vale
 ```
 
-After running the command the consumer repository will contain:
+After running the command, the consumer repository will contain:
 
 ```ini
 Packages = https://github.com/leynos/concordat-vale/releases/download/v<version>/concordat-<version>.zip
