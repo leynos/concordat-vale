@@ -28,7 +28,6 @@ Examples
 
 from __future__ import annotations
 
-import collections.abc as cabc
 import dataclasses as dc
 import enum
 import json
@@ -36,6 +35,7 @@ import re
 import typing as typ
 
 if typ.TYPE_CHECKING:
+    import collections.abc as cabc
     from pathlib import Path
 
 ENTRY_PATTERN = re.compile(
@@ -99,21 +99,31 @@ def parse_source_entries(
     entries_provided = 0
     parsed: dict[str, object] = {}
     for raw_line in source.read_text(encoding="utf-8").splitlines():
-        if not raw_line.strip():
+        processed = _process_source_line(raw_line, value_type)
+        if processed is None:
             continue
-        if re.match(r"^\s*#", raw_line):
-            continue
-
-        stripped = re.sub(r"\s+(#.*)?$", "", raw_line)
-        token = stripped.strip()
-        if not token:
-            continue
-
+        key, value = processed
         entries_provided += 1
-        key, value = _parse_token(token, value_type)
         parsed[key] = value
 
     return entries_provided, parsed
+
+
+def _process_source_line(
+    raw_line: str, value_type: MapValueType
+) -> tuple[str, object] | None:
+    """Process a single source line, returning parsed key/value or None."""
+    if not raw_line.strip():
+        return None
+    if re.match(r"^\s*#", raw_line):
+        return None
+
+    stripped = re.sub(r"\s+(#.*)?$", "", raw_line)
+    token = stripped.strip()
+    if not token:
+        return None
+
+    return _parse_token(token, value_type)
 
 
 def update_tengo_map(
@@ -169,23 +179,42 @@ def _apply_entries(
     updated = 0
     current_closing_idx = closing_idx
     for key, value in entries.items():
-        if key in ctx.existing:
-            entry = ctx.existing[key]
-            if _values_equal(entry.value, value):
-                continue
-            ctx.lines[entry.index] = _render_entry(
-                key=key,
-                value=value,
-                indent=entry.indent,
-                comment=entry.comment,
-            )
-            updated += 1
-        else:
-            rendered_line = _render_entry(key, value, ctx.entry_indent, "")
-            ctx.lines.insert(current_closing_idx, rendered_line)
-            current_closing_idx += 1
-            updated += 1
+        delta, current_closing_idx = _apply_single_entry(
+            ctx.lines,
+            ctx.existing,
+            key,
+            value,
+            ctx.entry_indent,
+            current_closing_idx,
+        )
+        updated += delta
     return updated, ctx.lines
+
+
+def _apply_single_entry(
+    lines: list[str],
+    existing: dict[str, _Entry],
+    key: str,
+    value: object,
+    entry_indent: str,
+    closing_idx: int,
+) -> tuple[int, int]:
+    """Apply an update for a single key, returning delta-updated and new index."""
+    if key in existing:
+        entry = existing[key]
+        if _values_equal(entry.value, value):
+            return 0, closing_idx
+        lines[entry.index] = _render_entry(
+            key=key,
+            value=value,
+            indent=entry.indent,
+            comment=entry.comment,
+        )
+        return 1, closing_idx
+
+    rendered_line = _render_entry(key, value, entry_indent, "")
+    lines.insert(closing_idx, rendered_line)
+    return 1, closing_idx + 1
 
 
 @dc.dataclass(frozen=True)
@@ -334,29 +363,53 @@ def _parse_numeric_value(value: str) -> int | float:
 def _parse_existing_value(raw: str) -> object:
     """Parse an existing map value from Tengo syntax into a Python type."""
     stripped = raw.strip()
-    lowered = stripped.lower()
+    parsers = [
+        _try_parse_boolean,
+        _try_parse_json_string,
+        _try_parse_int,
+        _try_parse_float,
+    ]
+    for parser in parsers:
+        parsed = parser(stripped)
+        if parsed is not None:
+            return parsed
+    return stripped
+
+
+def _try_parse_boolean(value: str) -> bool | None:
+    """Return True/False for boolean literals, otherwise None."""
+    lowered = value.lower()
     if lowered == "true":
         return True
     if lowered == "false":
         return False
+    return None
 
-    if len(stripped) >= 2 and stripped[0] == stripped[-1] == '"':
+
+def _try_parse_json_string(value: str) -> str | None:
+    """Return decoded JSON string literal when surrounded by quotes."""
+    if len(value) >= 2 and value[0] == value[-1] == '"':
         try:
-            return json.loads(stripped)
+            return json.loads(value)
         except json.JSONDecodeError:
-            return stripped.strip('"')
+            return value.strip('"')
+    return None
 
+
+def _try_parse_int(value: str) -> int | None:
+    """Return int(value) if possible, else None."""
     try:
-        return int(stripped)
+        return int(value)
     except ValueError:
-        pass
+        return None
 
+
+def _try_parse_float(value: str) -> float | None:
+    """Return float(value) if possible, else None."""
     try:
-        return float(stripped)
+        return float(value)
     except ValueError:
-        pass
-
-    return stripped
+        return None
 
 
 def _values_equal(existing: object, new_value: object) -> bool:
