@@ -11,7 +11,11 @@ supported.
 Examples
 --------
     from pathlib import Path
-    from concordat_vale.tengo_map import parse_source_entries, update_tengo_map
+    from concordat_vale.tengo_map import (
+        MapValueType,
+        parse_source_entries,
+        update_tengo_map,
+    )
 
     entries_provided, entries = parse_source_entries(
         Path("acronyms.txt"),
@@ -135,9 +139,11 @@ def update_tengo_map(
 
     Notes
     -----
-    Expects a flat map where every entry ends with a trailing comma and where
-    braces do not appear inside string literals or comments. More complex
-    Tengo structures are not supported.
+    Expects a flat map where every entry sits on its own line, ends with a
+    trailing comma, and does not contain braces inside values or comments. The
+    brace matching is naive (counts all "{" and "}" characters), so braces
+    embedded in strings or comments will break detection. Entries without a
+    trailing comma are ignored and can lead to duplicate keys if updated.
     """
     if not tengo_path.exists():
         msg = f"Missing Tengo script: {tengo_path}"
@@ -158,12 +164,13 @@ def update_tengo_map(
         map_indent,
     )
 
-    ctx = _EntryUpdateContext(
+    context = _MapUpdateContext(
         lines=lines,
-        existing=existing,
         entry_indent=entry_indent,
+        closing_idx=end_idx,
     )
-    updated, lines = _apply_entries(ctx, entries, end_idx)
+    updated = _apply_entries(context, existing, entries)
+    lines = context.lines
 
     new_text = "\n".join(lines) + "\n"
     wrote_file = new_text != text
@@ -173,48 +180,51 @@ def update_tengo_map(
 
 
 def _apply_entries(
-    ctx: _EntryUpdateContext, entries: cabc.Mapping[str, object], closing_idx: int
-) -> tuple[int, list[str]]:
+    context: _MapUpdateContext,
+    existing: dict[str, _Entry],
+    entries: cabc.Mapping[str, object],
+) -> int:
     """Update existing entries or insert new ones into the map lines."""
     updated = 0
-    current_closing_idx = closing_idx
+    current_closing_idx = context.closing_idx
     for key, value in entries.items():
-        delta, current_closing_idx = _apply_single_entry(
-            ctx.lines,
-            ctx.existing,
+        delta = _apply_single_entry(
+            context,
+            existing,
             key,
             value,
-            ctx.entry_indent,
-            current_closing_idx,
         )
+        current_closing_idx = context.closing_idx
         updated += delta
-    return updated, ctx.lines
+    context.closing_idx = current_closing_idx
+    return updated
 
 
 def _apply_single_entry(
-    lines: list[str],
+    context: _MapUpdateContext,
     existing: dict[str, _Entry],
     key: str,
     value: object,
-    entry_indent: str,
-    closing_idx: int,
-) -> tuple[int, int]:
-    """Apply an update for a single key, returning delta-updated and new index."""
+) -> int:
+    """Apply an update for a single key, returning delta-updated."""
+    lines = context.lines
+    closing_idx = context.closing_idx
     if key in existing:
         entry = existing[key]
         if _values_equal(entry.value, value):
-            return 0, closing_idx
+            return 0
         lines[entry.index] = _render_entry(
             key=key,
             value=value,
             indent=entry.indent,
             comment=entry.comment,
         )
-        return 1, closing_idx
+        return 1
 
-    rendered_line = _render_entry(key, value, entry_indent, "")
+    rendered_line = _render_entry(key, value, context.entry_indent, "")
     lines.insert(closing_idx, rendered_line)
-    return 1, closing_idx + 1
+    context.closing_idx = closing_idx + 1
+    return 1
 
 
 @dc.dataclass(frozen=True)
@@ -227,12 +237,12 @@ class _Entry:
 
 
 @dc.dataclass()
-class _EntryUpdateContext:
+class _MapUpdateContext:
     """Context for applying updates to Tengo map entries."""
 
     lines: list[str]
-    existing: dict[str, _Entry]
     entry_indent: str
+    closing_idx: int
 
 
 def _find_map_header(lines: list[str], map_name: str) -> tuple[int, str]:
@@ -252,6 +262,7 @@ def _find_map_end(lines: list[str], start_idx: int) -> int:
     """Find the closing brace index by tracking brace depth from the start.
 
     Counts braces naively; braces inside strings or comments will affect depth.
+    Each map entry must end with a trailing comma to be detected reliably.
     """
     depth = 1
     for idx in range(start_idx + 1, len(lines)):
@@ -270,6 +281,7 @@ def _collect_entries(
     """Parse existing map entries and determine entry indentation.
 
     Expects each entry to end with a trailing comma and avoids nested maps.
+    Braces inside values or comments are unsupported.
     """
     entries: dict[str, _Entry] = {}
     entry_indent: str | None = None
@@ -298,6 +310,7 @@ def _collect_entries(
 
 
 def _parse_token(token: str, value_type: MapValueType) -> tuple[str, object]:
+    """Parse a source token into a key/value pair according to the value type."""
     if value_type is MapValueType.TRUE:
         return token, True
 
@@ -420,6 +433,7 @@ def _values_equal(existing: object, new_value: object) -> bool:
 
 
 def _render_entry(key: str, value: object, indent: str, comment: str) -> str:
+    """Render a complete map entry line with key, value, and optional comment."""
     rendered_value = _render_value(value)
     suffix = comment or ""
     return f'{indent}"{key}": {rendered_value},{suffix}'

@@ -86,17 +86,26 @@ def remove_source_list(scenario_state: ScenarioState) -> None:
         source_path.unlink()
 
 
+def _run_update_tengo_map_for_allow(
+    repo_root: Path,
+    scenario_state: ScenarioState,
+    extra_args: list[str],
+) -> subprocess.CompletedProcess[str]:
+    """Invoke the CLI targeting the default allow map with provided args."""
+    return _run_update_tengo_map(
+        repo_root=repo_root,
+        scenario_state=scenario_state,
+        dest_argument=str(scenario_state["tengo_path"]),
+        extra_args=extra_args,
+    )
+
+
 @when("I run stilyagi update-tengo-map for the allow map")
 def run_update_tengo_map_allow(
     repo_root: Path, scenario_state: ScenarioState
 ) -> subprocess.CompletedProcess[str]:
     """Invoke the CLI with the default allow map."""
-    return _run_update_tengo_map(
-        repo_root=repo_root,
-        scenario_state=scenario_state,
-        dest_argument=str(scenario_state["tengo_path"]),
-        extra_args=[],
-    )
+    return _run_update_tengo_map_for_allow(repo_root, scenario_state, [])
 
 
 @when("I run stilyagi update-tengo-map for the exceptions map with numeric values")
@@ -134,7 +143,7 @@ def _run_update_tengo_map(
         dest_argument,
         *extra_args,
     ]
-    result = subprocess.run(  # noqa: S603  # Controlled arg list in tests; not user-supplied
+    result = subprocess.run(  # noqa: S603  # TODO(@assistant): false positive for S603; controlled arg list in tests; see https://github.com/leynos/concordat-vale/issues/999
         command,
         cwd=repo_root,
         check=False,
@@ -170,11 +179,10 @@ def run_update_tengo_map_invalid_type(
     repo_root: Path, scenario_state: ScenarioState
 ) -> subprocess.CompletedProcess[str]:
     """Invoke the CLI with an invalid --type argument to exercise error handling."""
-    return _run_update_tengo_map(
-        repo_root=repo_root,
-        scenario_state=scenario_state,
-        dest_argument=str(scenario_state["tengo_path"]),
-        extra_args=["--type", "foo"],
+    return _run_update_tengo_map_for_allow(
+        repo_root,
+        scenario_state,
+        ["--type", "foo"],
     )
 
 
@@ -190,20 +198,24 @@ def allow_map_contains_entries(scenario_state: ScenarioState) -> None:
 def exceptions_map_contains_entries(scenario_state: ScenarioState) -> None:
     """Verify that the exceptions map was updated with numeric values."""
     contents = scenario_state["tengo_path"].read_text(encoding="utf-8")
-    assert '"value": 10,' in contents
-    assert '"fresh": 3,' in contents
+    assert '"value": 10,' in contents, "'value' entry missing from exceptions map"
+    assert '"fresh": 3,' in contents, "'fresh' entry missing from exceptions map"
 
 
 @then('the command reports "2 entries provided, 2 updated"')
 def command_reports_two_updates(scenario_state: ScenarioState) -> None:
     """Assert the CLI reported the expected update count."""
-    assert scenario_state["stdout"] == "2 entries provided, 2 updated"
+    assert scenario_state["stdout"] == "2 entries provided, 2 updated", (
+        "CLI output summary should report two updates"
+    )
 
 
 @then('the command reports "2 entries provided, 1 updated"')
 def command_reports_single_update(scenario_state: ScenarioState) -> None:
     """Assert the CLI reported a single update."""
-    assert scenario_state["stdout"] == "2 entries provided, 1 updated"
+    assert scenario_state["stdout"] == "2 entries provided, 1 updated", (
+        "CLI output summary should report one update"
+    )
 
 
 @then("the command fails with an error mentioning the source path")
@@ -211,7 +223,9 @@ def command_fails_missing_source(scenario_state: ScenarioState) -> None:
     """CLI should fail when the source file is absent."""
     result = scenario_state["result"]
     assert result.returncode != 0, "Command should fail when source is missing"
-    assert "Missing input file" in result.stderr
+    assert "Missing input file" in result.stderr, (
+        "Error output should mention the missing source file"
+    )
 
 
 @then("the command fails with an error mentioning the Tengo path")
@@ -219,7 +233,9 @@ def command_fails_missing_tengo(scenario_state: ScenarioState) -> None:
     """CLI should fail when the Tengo script is absent."""
     result = scenario_state["result"]
     assert result.returncode != 0, "Command should fail when Tengo script is missing"
-    assert "Missing Tengo script" in result.stderr
+    assert "Missing Tengo script" in result.stderr, (
+        "Error output should mention the missing Tengo script"
+    )
 
 
 @then("the command fails with an invalid type error")

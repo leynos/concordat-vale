@@ -285,8 +285,9 @@ def update_tengo_map_command(
         str,
         Parameter(
             help=(
-                "Tengo script path, optionally suffixed with ::mapname."
-                f" When omitted, the {DEFAULT_MAP_NAME!r} map is used."
+                "Tengo script path; append ::mapname to target a different map."
+                f" When no suffix is provided, the {DEFAULT_MAP_NAME!r} map"
+                " is used."
             )
         ),
     ],
@@ -314,7 +315,7 @@ def update_tengo_map_command(
             resolved_source, map_value_type
         )
         result = update_tengo_map(resolved_dest, map_name, entries)
-    except (FileNotFoundError, TengoMapError, ValueError) as exc:
+    except (FileNotFoundError, TengoMapError, ValueError, OSError) as exc:
         raise SystemExit(str(exc)) from exc
 
     message = f"{entries_provided} entries provided, {result.updated} updated"

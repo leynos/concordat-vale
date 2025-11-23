@@ -26,45 +26,58 @@ def _fmt(text: str) -> str:
     return textwrap.dedent(text).strip() + "\n"
 
 
-def test_parse_source_entries_handles_comments_and_duplicates(tmp_path: Path) -> None:
-    """Inline comments are stripped and later duplicates override earlier."""
-    source = tmp_path / "entries.txt"
-    source.write_text(
-        _fmt(
-            """
-            # heading comment
-            alpha    # trailing
-            beta
-            alpha
-            """
+@pytest.mark.parametrize(
+    (
+        "contents",
+        "value_type",
+        "expected_count",
+        "expected_entries",
+    ),
+    [
+        (
+            _fmt(
+                """
+                # heading comment
+                alpha    # trailing
+                beta
+                alpha
+                """
+            ),
+            MapValueType.TRUE,
+            3,
+            {"alpha": True, "beta": True},
         ),
-        encoding="utf-8",
-    )
-
-    entries_provided, entries = parse_source_entries(source, MapValueType.TRUE)
-
-    assert entries_provided == 3
-    assert entries == {"alpha": True, "beta": True}
-
-
-def test_parse_source_entries_supports_numeric_values(tmp_path: Path) -> None:
-    """Numeric parsing accepts integers and keeps only the final value per key."""
-    source = tmp_path / "entries.txt"
-    source.write_text(
-        _fmt(
-            """
-            alpha=1
-            beta=2
-            alpha=3 # override
-            """
+        (
+            _fmt(
+                """
+                alpha=1
+                beta=2
+                alpha=3 # override
+                """
+            ),
+            MapValueType.NUMBER,
+            3,
+            {"alpha": 3, "beta": 2},
         ),
-        encoding="utf-8",
+    ],
+)
+def test_parse_source_entries_basic_modes(
+    tmp_path: Path,
+    contents: str,
+    value_type: MapValueType,
+    expected_count: int,
+    expected_entries: dict[str, object],
+) -> None:
+    """Parse entries for TRUE and NUMBER modes with comments and overrides."""
+    source = tmp_path / "entries.txt"
+    source.write_text(contents, encoding="utf-8")
+
+    entries_provided, entries = parse_source_entries(source, value_type)
+
+    assert entries_provided == expected_count, (
+        "entries_provided should match input lines"
     )
-
-    entries_provided, entries = parse_source_entries(source, MapValueType.NUMBER)
-
-    assert entries_provided == 3
-    assert entries == {"alpha": 3, "beta": 2}
+    assert entries == expected_entries, "entries mapping should match expected values"
 
 
 def test_parse_source_entries_supports_float_values(tmp_path: Path) -> None:
@@ -195,9 +208,15 @@ def test_update_tengo_map_updates_existing_and_appends_new(tmp_path: Path) -> No
         """
     )
 
-    assert tengo.read_text(encoding="utf-8") == expected
-    assert result.updated == 2
-    assert result.wrote_file is True
+    assert tengo.read_text(encoding="utf-8") == expected, (
+        "script.tengo contents should match the updated map"
+    )
+    assert result.updated == 2, (
+        "result.updated should count both updated and newly inserted entries"
+    )
+    assert result.wrote_file is True, (
+        "result.wrote_file should indicate the script was rewritten"
+    )
 
 
 def test_update_tengo_map_noop_when_values_unchanged(tmp_path: Path) -> None:
