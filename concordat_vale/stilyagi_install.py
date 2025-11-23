@@ -67,6 +67,23 @@ def _select_tag_and_version(payload: dict[str, typ.Any]) -> tuple[str, str]:
     return clean_tag, _strip_version_prefix(clean_tag)
 
 
+def _find_asset_by_name(assets: list[typ.Any], expected_name: str) -> str | None:
+    """Find an asset matching the expected name exactly."""
+    for asset in assets:
+        if asset.get("name") == expected_name:
+            return expected_name
+    return None
+
+
+def _find_zip_asset(assets: list[typ.Any]) -> str | None:
+    """Find any asset with a .zip extension."""
+    for asset in assets:
+        name = asset.get("name") if isinstance(asset, dict) else None
+        if isinstance(name, str) and name.endswith(".zip"):
+            return name
+    return None
+
+
 def _pick_asset_name(
     *,
     payload: dict[str, typ.Any],
@@ -77,17 +94,12 @@ def _pick_asset_name(
     if not isinstance(assets, list):
         return expected_name
 
-    for asset in assets:
-        name = asset.get("name") if isinstance(asset, dict) else None
-        if name == expected_name:
-            return expected_name
+    found = _find_asset_by_name(assets, expected_name)
+    if found:
+        return found
 
-    for asset in assets:
-        name = asset.get("name") if isinstance(asset, dict) else None
-        if isinstance(name, str) and name.endswith(".zip"):
-            return name
-
-    return expected_name
+    found = _find_zip_asset(assets)
+    return found if found else expected_name
 
 
 def _build_packages_url(repo: str, tag: str, asset: str) -> str:
@@ -148,6 +160,27 @@ def _emit_section(name: str, options: dict[str, str], lines: list[str]) -> None:
     lines.append("")
 
 
+def _emit_ordered_sections(
+    section_order: list[str], sections: dict[str, dict[str, str]], lines: list[str]
+) -> set[str]:
+    """Emit sections in order and return the emitted names."""
+    seen: set[str] = set()
+    for name in section_order:
+        if name in sections:
+            _emit_section(name, sections[name], lines)
+            seen.add(name)
+    return seen
+
+
+def _emit_remaining_sections(
+    sections: dict[str, dict[str, str]], seen: set[str], lines: list[str]
+) -> None:
+    """Emit remaining sections not already emitted, sorted alphabetically."""
+    for name in sorted(sections):
+        if name not in seen:
+            _emit_section(name, sections[name], lines)
+
+
 def _render_ini(
     *,
     root_options: dict[str, str],
@@ -163,14 +196,8 @@ def _render_ini(
         "*.{rs,ts,js,sh,py}",
         "README.md",
     ]
-    seen: set[str] = set()
-    for name in section_order:
-        if name in sections:
-            _emit_section(name, sections[name], lines)
-            seen.add(name)
-    for name in sorted(sections):
-        if name not in seen:
-            _emit_section(name, sections[name], lines)
+    seen = _emit_ordered_sections(section_order, sections, lines)
+    _emit_remaining_sections(sections, seen, lines)
     return "\n".join(lines).rstrip() + "\n"
 
 

@@ -75,27 +75,20 @@ def run_install(
     assert result.returncode == 0, result.stderr
 
 
-@when("I run stilyagi install with an auto-discovered version")
-def run_install_auto(
+def _run_install_with_mocked_release(
+    *,
     repo_root: Path,
     external_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
-    scenario_state: dict[str, object],
-) -> None:
-    """Invoke install without explicit version, relying on release discovery."""
+    fake_fetch_fn: object,
+    capture_error: bool = False,
+) -> dict[str, object]:
+    """Run install with a mocked release fetch function."""
     import concordat_vale.stilyagi as stilyagi_module
     import concordat_vale.stilyagi_install as install_module
 
-    def fake_fetch_latest_release(repo: str) -> dict[str, object]:
-        return {
-            "tag_name": "v9.9.9-auto",
-            "assets": [
-                {"name": "concordat-9.9.9-auto.zip"},
-            ],
-        }
-
     monkeypatch.setattr(
-        install_module, "_fetch_latest_release", fake_fetch_latest_release, raising=True
+        install_module, "_fetch_latest_release", fake_fetch_fn, raising=True
     )
 
     owner, repo_name, style_name = stilyagi_module._parse_repo_reference(  # type: ignore[attr-defined]
@@ -114,7 +107,42 @@ def run_install_auto(
         ini_path=ini_path,
         makefile_path=makefile_path,
     )
+
+    if capture_error:
+        try:
+            install_module._perform_install(config=config)  # type: ignore[attr-defined]
+        except Exception as exc:  # noqa: BLE001
+            return {"error": exc}
+        return {"error": None}
+
     install_module._perform_install(config=config)  # type: ignore[attr-defined]
+    return {}
+
+
+@when("I run stilyagi install with an auto-discovered version")
+def run_install_auto(
+    repo_root: Path,
+    external_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    scenario_state: dict[str, object],
+) -> None:
+    """Invoke install without explicit version, relying on release discovery."""
+
+    def fake_fetch_latest_release(repo: str) -> dict[str, object]:
+        return {
+            "tag_name": "v9.9.9-auto",
+            "assets": [
+                {"name": "concordat-9.9.9-auto.zip"},
+            ],
+        }
+
+    _run_install_with_mocked_release(
+        repo_root=repo_root,
+        external_repo=external_repo,
+        monkeypatch=monkeypatch,
+        fake_fetch_fn=fake_fetch_latest_release,
+        capture_error=False,
+    )
     scenario_state["expected_version"] = "9.9.9-auto"
 
 
@@ -126,39 +154,18 @@ def run_install_failure(
     scenario_state: dict[str, object],
 ) -> None:
     """Invoke install where release lookup fails to ensure errors surface."""
-    import concordat_vale.stilyagi as stilyagi_module
-    import concordat_vale.stilyagi_install as install_module
 
     def fake_fetch_latest_release(repo: str) -> dict[str, object]:
         raise RuntimeError("simulated release lookup failure")  # noqa: TRY003
 
-    monkeypatch.setattr(
-        install_module, "_fetch_latest_release", fake_fetch_latest_release, raising=True
+    result = _run_install_with_mocked_release(
+        repo_root=repo_root,
+        external_repo=external_repo,
+        monkeypatch=monkeypatch,
+        fake_fetch_fn=fake_fetch_latest_release,
+        capture_error=True,
     )
-
-    owner, repo_name, style_name = stilyagi_module._parse_repo_reference(  # type: ignore[attr-defined]
-        "leynos/concordat-vale"
-    )
-    _, ini_path, makefile_path = install_module._resolve_install_paths(  # type: ignore[attr-defined]
-        cwd=repo_root,
-        project_root=external_repo,
-        vale_ini=Path(".vale.ini"),
-        makefile=Path("Makefile"),
-    )
-    config = install_module.InstallConfig(  # type: ignore[attr-defined]
-        owner=owner,
-        repo_name=repo_name,
-        style_name=style_name,
-        ini_path=ini_path,
-        makefile_path=makefile_path,
-    )
-
-    try:
-        install_module._perform_install(config=config)  # type: ignore[attr-defined]
-    except Exception as exc:  # noqa: BLE001
-        scenario_state["error"] = exc
-    else:
-        scenario_state["error"] = None
+    scenario_state["error"] = result.get("error")
 
 
 @then("the external repository has a configured .vale.ini")
