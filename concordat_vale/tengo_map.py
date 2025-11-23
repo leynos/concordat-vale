@@ -185,46 +185,48 @@ def _apply_entries(
     entries: cabc.Mapping[str, object],
 ) -> int:
     """Update existing entries or insert new ones into the map lines."""
+    entry_ctx = _EntryUpdateContext(
+        lines=context.lines,
+        existing=existing,
+        entry_indent=context.entry_indent,
+    )
     updated = 0
     current_closing_idx = context.closing_idx
     for key, value in entries.items():
-        delta = _apply_single_entry(
-            context,
-            existing,
+        delta, current_closing_idx = _apply_single_entry(
+            entry_ctx,
             key,
             value,
+            current_closing_idx,
         )
-        current_closing_idx = context.closing_idx
         updated += delta
     context.closing_idx = current_closing_idx
     return updated
 
 
 def _apply_single_entry(
-    context: _MapUpdateContext,
-    existing: dict[str, _Entry],
+    ctx: _EntryUpdateContext,
     key: str,
     value: object,
-) -> int:
-    """Apply an update for a single key, returning delta-updated."""
-    lines = context.lines
-    closing_idx = context.closing_idx
-    if key in existing:
-        entry = existing[key]
+    closing_idx: int,
+) -> tuple[int, int]:
+    """Apply an update for a single key, returning delta-updated and new index."""
+    lines = ctx.lines
+    if key in ctx.existing:
+        entry = ctx.existing[key]
         if _values_equal(entry.value, value):
-            return 0
+            return 0, closing_idx
         lines[entry.index] = _render_entry(
             key=key,
             value=value,
             indent=entry.indent,
             comment=entry.comment,
         )
-        return 1
+        return 1, closing_idx
 
-    rendered_line = _render_entry(key, value, context.entry_indent, "")
+    rendered_line = _render_entry(key, value, ctx.entry_indent, "")
     lines.insert(closing_idx, rendered_line)
-    context.closing_idx = closing_idx + 1
-    return 1
+    return 1, closing_idx + 1
 
 
 @dc.dataclass(frozen=True)
@@ -234,6 +236,15 @@ class _Entry:
     comment: str
     raw_value: str
     value: object
+
+
+@dc.dataclass()
+class _EntryUpdateContext:
+    """Context for updating individual Tengo map entries."""
+
+    lines: list[str]
+    existing: dict[str, _Entry]
+    entry_indent: str
 
 
 @dc.dataclass()
@@ -259,11 +270,7 @@ def _find_map_header(lines: list[str], map_name: str) -> tuple[int, str]:
 
 
 def _find_map_end(lines: list[str], start_idx: int) -> int:
-    """Find the closing brace index by tracking brace depth from the start.
-
-    Counts braces naively; braces inside strings or comments will affect depth.
-    Each map entry must end with a trailing comma to be detected reliably.
-    """
+    """Find the closing brace index by tracking brace depth from the start."""
     depth = 1
     for idx in range(start_idx + 1, len(lines)):
         line = lines[idx]

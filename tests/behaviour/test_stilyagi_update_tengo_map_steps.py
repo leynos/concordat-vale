@@ -143,7 +143,7 @@ def _run_update_tengo_map(
         dest_argument,
         *extra_args,
     ]
-    result = subprocess.run(  # noqa: S603  # TODO(@assistant): false positive for S603; controlled arg list in tests; see https://github.com/leynos/concordat-vale/issues/999
+    result = subprocess.run(  # noqa: S603, TD001  # FIXME(@assistant): false positive for S603; controlled arg list in tests; see https://github.com/leynos/concordat-vale/issues/999
         command,
         cwd=repo_root,
         check=False,
