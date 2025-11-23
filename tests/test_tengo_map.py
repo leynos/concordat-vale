@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses as dc
 import textwrap
 import typing as typ
 
@@ -26,16 +27,21 @@ def _fmt(text: str) -> str:
     return textwrap.dedent(text).strip() + "\n"
 
 
+@dc.dataclass(frozen=True)
+class _ParseTestCase:
+    """Test case for parse_source_entries."""
+
+    contents: str
+    value_type: MapValueType
+    expected_count: int
+    expected_entries: dict[str, object]
+
+
 @pytest.mark.parametrize(
-    (
-        "contents",
-        "value_type",
-        "expected_count",
-        "expected_entries",
-    ),
+    "test_case",
     [
-        (
-            _fmt(
+        _ParseTestCase(
+            contents=_fmt(
                 """
                 # heading comment
                 alpha    # trailing
@@ -43,41 +49,40 @@ def _fmt(text: str) -> str:
                 alpha
                 """
             ),
-            MapValueType.TRUE,
-            3,
-            {"alpha": True, "beta": True},
+            value_type=MapValueType.TRUE,
+            expected_count=3,
+            expected_entries={"alpha": True, "beta": True},
         ),
-        (
-            _fmt(
+        _ParseTestCase(
+            contents=_fmt(
                 """
                 alpha=1
                 beta=2
                 alpha=3 # override
                 """
             ),
-            MapValueType.NUMBER,
-            3,
-            {"alpha": 3, "beta": 2},
+            value_type=MapValueType.NUMBER,
+            expected_count=3,
+            expected_entries={"alpha": 3, "beta": 2},
         ),
     ],
 )
 def test_parse_source_entries_basic_modes(
     tmp_path: Path,
-    contents: str,
-    value_type: MapValueType,
-    expected_count: int,
-    expected_entries: dict[str, object],
+    test_case: _ParseTestCase,
 ) -> None:
     """Parse entries for TRUE and NUMBER modes with comments and overrides."""
     source = tmp_path / "entries.txt"
-    source.write_text(contents, encoding="utf-8")
+    source.write_text(test_case.contents, encoding="utf-8")
 
-    entries_provided, entries = parse_source_entries(source, value_type)
+    entries_provided, entries = parse_source_entries(source, test_case.value_type)
 
-    assert entries_provided == expected_count, (
+    assert entries_provided == test_case.expected_count, (
         "entries_provided should match input lines"
     )
-    assert entries == expected_entries, "entries mapping should match expected values"
+    assert entries == test_case.expected_entries, (
+        "entries mapping should match expected values"
+    )
 
 
 def test_parse_source_entries_supports_float_values(tmp_path: Path) -> None:
