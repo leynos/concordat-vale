@@ -7,7 +7,21 @@ from zipfile import ZipFile
 
 import pytest
 
-from concordat_vale.stilyagi import package_styles
+from concordat_vale.stilyagi_packaging import (
+    PackagingPaths,
+    StyleConfig,
+    package_styles,
+)
+
+
+def _default_paths_and_config(project_root: Path) -> tuple[PackagingPaths, StyleConfig]:
+    """Return common PackagingPaths and default StyleConfig for tests."""
+    paths = PackagingPaths(
+        project_root=project_root,
+        styles_path=Path("styles"),
+        output_dir=Path("dist"),
+    )
+    return paths, StyleConfig()
 
 
 @pytest.fixture
@@ -49,13 +63,11 @@ def project_without_vocab(tmp_path: Path) -> Path:
 
 def test_package_styles_builds_archive_with_ini_and_files(sample_project: Path) -> None:
     """Verify that archives include .vale.ini metadata and style files."""
+    paths, config = _default_paths_and_config(sample_project)
     archive_path = package_styles(
-        project_root=sample_project,
-        styles_path=Path("styles"),
-        output_dir=Path("dist"),
+        paths=paths,
+        config=config,
         version="1.2.3",
-        explicit_styles=None,
-        vocabulary=None,
         force=False,
     )
 
@@ -82,13 +94,11 @@ def test_package_styles_refuses_to_overwrite_without_force(
     sample_project: Path,
 ) -> None:
     """Ensure existing archives are preserved unless --force is used."""
+    paths, config = _default_paths_and_config(sample_project)
     first = package_styles(
-        project_root=sample_project,
-        styles_path=Path("styles"),
-        output_dir=Path("dist"),
+        paths=paths,
+        config=config,
         version="1.2.3",
-        explicit_styles=None,
-        vocabulary=None,
         force=False,
     )
 
@@ -96,34 +106,26 @@ def test_package_styles_refuses_to_overwrite_without_force(
 
     with pytest.raises(FileExistsError):
         package_styles(
-            project_root=sample_project,
-            styles_path=Path("styles"),
-            output_dir=Path("dist"),
+            paths=paths,
+            config=config,
             version="1.2.3",
-            explicit_styles=None,
-            vocabulary=None,
             force=False,
         )
 
 
 def test_package_styles_overwrites_with_force(sample_project: Path) -> None:
     """Allow overwriting archives when --force is provided."""
+    paths, config = _default_paths_and_config(sample_project)
     archive_path = package_styles(
-        project_root=sample_project,
-        styles_path=Path("styles"),
-        output_dir=Path("dist"),
+        paths=paths,
+        config=config,
         version="1.2.3",
-        explicit_styles=None,
-        vocabulary=None,
         force=False,
     )
     overwritten = package_styles(
-        project_root=sample_project,
-        styles_path=Path("styles"),
-        output_dir=Path("dist"),
+        paths=paths,
+        config=config,
         version="1.2.3",
-        explicit_styles=None,
-        vocabulary=None,
         force=True,
     )
     assert overwritten == archive_path, (
@@ -138,12 +140,13 @@ def test_package_styles_missing_styles_dir_raises(tmp_path: Path) -> None:
     """Verify a helpful error is raised when the styles directory is absent."""
     with pytest.raises(FileNotFoundError):
         package_styles(
-            project_root=tmp_path,
-            styles_path=Path("does-not-exist"),
-            output_dir=Path("dist"),
+            paths=PackagingPaths(
+                project_root=tmp_path,
+                styles_path=Path("does-not-exist"),
+                output_dir=Path("dist"),
+            ),
+            config=StyleConfig(),
             version="0.0.1",
-            explicit_styles=None,
-            vocabulary=None,
             force=False,
         )
 
@@ -152,13 +155,11 @@ def test_package_styles_omits_vocab_when_unavailable(
     project_without_vocab: Path,
 ) -> None:
     """Ensure Vocab is omitted from .vale.ini when no vocabularies exist."""
+    paths, config = _default_paths_and_config(project_without_vocab)
     archive_path = package_styles(
-        project_root=project_without_vocab,
-        styles_path=Path("styles"),
-        output_dir=Path("dist"),
+        paths=paths,
+        config=config,
         version="0.9.9",
-        explicit_styles=None,
-        vocabulary=None,
         force=False,
     )
     with ZipFile(archive_path) as archive:
@@ -176,13 +177,11 @@ def test_package_styles_omits_vocab_when_multiple_present(
     extra_vocab.mkdir(parents=True, exist_ok=True)
     (extra_vocab / "accept.txt").write_text("alt\n", encoding="utf-8")
 
+    paths, config = _default_paths_and_config(sample_project)
     archive_path = package_styles(
-        project_root=sample_project,
-        styles_path=Path("styles"),
-        output_dir=Path("dist"),
+        paths=paths,
+        config=config,
         version="1.2.3",
-        explicit_styles=None,
-        vocabulary=None,
         force=False,
     )
 
@@ -195,14 +194,11 @@ def test_package_styles_omits_vocab_when_multiple_present(
 
 def test_package_styles_respects_ini_styles_path(sample_project: Path) -> None:
     """Use the configured StylesPath entry inside the archive."""
+    paths, _ = _default_paths_and_config(sample_project)
     archive_path = package_styles(
-        project_root=sample_project,
-        styles_path=Path("styles"),
-        output_dir=Path("dist"),
+        paths=paths,
+        config=StyleConfig(ini_styles_path="custom_styles"),
         version="1.2.3",
-        explicit_styles=None,
-        vocabulary=None,
-        ini_styles_path="custom_styles",
         force=True,
     )
 
