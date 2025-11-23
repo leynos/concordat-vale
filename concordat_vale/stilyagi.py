@@ -4,7 +4,12 @@
 # dependencies = ["cyclopts>=2.9"]
 # ///
 
-"""Cyclopts-powered CLI for packaging Concordat Vale styles into ZIPs."""
+"""Cyclopts-powered CLI for packaging and installing Concordat Vale styles.
+
+The ``zip`` sub-command packages styles into distributable ZIP archives, and
+the ``install`` sub-command wires a packaged Concordat style into an external
+repository by updating its ``.vale.ini`` and Makefile.
+"""
 
 from __future__ import annotations
 

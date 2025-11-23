@@ -77,19 +77,16 @@ def run_install(
 
 
 @dc.dataclass
-class TestPaths:
+class _TestPaths:
     """Encapsulates test directory paths for installation testing."""
 
     repo_root: Path
     external_repo: Path
 
 
-TestPaths.__test__ = False  # Prevent pytest from collecting helper dataclass as a test
-
-
 def _run_install_with_mocked_release(
     *,
-    paths: TestPaths,
+    paths: _TestPaths,
     monkeypatch: pytest.MonkeyPatch,
     fake_fetch_fn: object,
 ) -> dict[str, object]:
@@ -142,7 +139,7 @@ def run_install_auto(
             ],
         }
 
-    paths = TestPaths(repo_root=repo_root, external_repo=external_repo)
+    paths = _TestPaths(repo_root=repo_root, external_repo=external_repo)
     _run_install_with_mocked_release(
         paths=paths,
         monkeypatch=monkeypatch,
@@ -163,7 +160,7 @@ def run_install_failure(
     def fake_fetch_latest_release(_repo: str) -> dict[str, object]:
         raise RuntimeError("simulated release lookup failure")  # noqa: TRY003
 
-    paths = TestPaths(repo_root=repo_root, external_repo=external_repo)
+    paths = _TestPaths(repo_root=repo_root, external_repo=external_repo)
     result = _run_install_with_mocked_release(
         paths=paths,
         monkeypatch=monkeypatch,
