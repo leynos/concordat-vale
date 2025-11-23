@@ -302,7 +302,31 @@ def update_tengo_map_command(
         ),
     ] = MapValueType.TRUE.value,
 ) -> str:
-    """Update a Tengo map with entries from a source list."""
+    """Update a Tengo map with entries from a source list.
+
+    Parameters
+    ----------
+    source : Path
+        Path to the input file containing map entries (one per line).
+    dest : str
+        Destination Tengo script path, optionally suffixed with ``::mapname``;
+        defaults to the ``allow`` map when no suffix is provided.
+    project_root : Path, optional
+        Root directory used to resolve relative ``source`` and ``dest`` paths.
+    value_type : str, optional
+        Value parsing mode: ``true`` (keys only), ``=``, ``=b``, or ``=n``;
+        defaults to ``true``.
+
+    Returns
+    -------
+    str
+        Summary message reporting entries provided and updated counts.
+
+    Raises
+    ------
+    SystemExit
+        If inputs are missing, malformed, or I/O operations fail.
+    """
     resolved_root = project_root.expanduser().resolve()
     resolved_source = _resolve_project_path(resolved_root, source)
 
