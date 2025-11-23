@@ -18,12 +18,6 @@ from pathlib import Path
 
 import cyclopts
 from cyclopts import App, Parameter
-from .tengo_map import (
-    MapValueType,
-    TengoMapError,
-    parse_source_entries,
-    update_tengo_map,
-)
 
 from .stilyagi_install import (
     InstallConfig,
@@ -36,11 +30,17 @@ from .stilyagi_install import (
 from .stilyagi_packaging import (
     DEFAULT_OUTPUT_DIR,
     DEFAULT_STYLES_PATH,
-    _resolve_project_path,
     PackagingPaths,
     StyleConfig,
+    _resolve_project_path,
     _resolve_version,
     package_styles,
+)
+from .tengo_map import (
+    MapValueType,
+    TengoMapError,
+    parse_source_entries,
+    update_tengo_map,
 )
 
 DEFAULT_MAP_NAME = "allow"
