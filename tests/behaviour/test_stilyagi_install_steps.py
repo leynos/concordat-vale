@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses as dc
 import subprocess
 import sys
 from pathlib import Path
@@ -75,10 +76,20 @@ def run_install(
     assert result.returncode == 0, result.stderr
 
 
+@dc.dataclass
+class TestPaths:
+    """Encapsulates test directory paths for installation testing."""
+
+    repo_root: Path
+    external_repo: Path
+
+
+TestPaths.__test__ = False  # Prevent pytest from collecting helper dataclass as a test
+
+
 def _run_install_with_mocked_release(
     *,
-    repo_root: Path,
-    external_repo: Path,
+    paths: TestPaths,
     monkeypatch: pytest.MonkeyPatch,
     fake_fetch_fn: object,
 ) -> dict[str, object]:
@@ -94,8 +105,8 @@ def _run_install_with_mocked_release(
         "leynos/concordat-vale"
     )
     _, ini_path, makefile_path = install_module._resolve_install_paths(  # type: ignore[attr-defined]
-        cwd=repo_root,
-        project_root=external_repo,
+        cwd=paths.repo_root,
+        project_root=paths.external_repo,
         vale_ini=Path(".vale.ini"),
         makefile=Path("Makefile"),
     )
@@ -109,7 +120,7 @@ def _run_install_with_mocked_release(
 
     try:
         install_module._perform_install(config=config)  # type: ignore[attr-defined]
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 - behavioural test captures any error to record scenario state
         return {"error": exc}
     return {"error": None}
 
@@ -131,9 +142,9 @@ def run_install_auto(
             ],
         }
 
+    paths = TestPaths(repo_root=repo_root, external_repo=external_repo)
     _run_install_with_mocked_release(
-        repo_root=repo_root,
-        external_repo=external_repo,
+        paths=paths,
         monkeypatch=monkeypatch,
         fake_fetch_fn=fake_fetch_latest_release,
     )
@@ -152,9 +163,9 @@ def run_install_failure(
     def fake_fetch_latest_release(_repo: str) -> dict[str, object]:
         raise RuntimeError("simulated release lookup failure")  # noqa: TRY003
 
+    paths = TestPaths(repo_root=repo_root, external_repo=external_repo)
     result = _run_install_with_mocked_release(
-        repo_root=repo_root,
-        external_repo=external_repo,
+        paths=paths,
         monkeypatch=monkeypatch,
         fake_fetch_fn=fake_fetch_latest_release,
     )
