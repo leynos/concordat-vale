@@ -35,6 +35,14 @@ jobs:
         if: ${{ github.actor == 'nektos/act' }}
         run: echo "ACT_CONTEXT=true" >> "$GITHUB_ENV"
 
+      - name: Isolate uv paths when running under act
+        if: ${{ env.ACT_CONTEXT == 'true' }}
+        run: |
+          set -euo pipefail
+          echo "UV_CACHE_DIR=/tmp/concordat-vale-uv-cache" >> "$GITHUB_ENV"
+          echo "UV_TOOL_DIR=/tmp/concordat-vale-uv-tools" >> "$GITHUB_ENV"
+          echo "UV_PROJECT_ENVIRONMENT=/tmp/concordat-vale-uv-venv" >> "$GITHUB_ENV"
+
       - name: Install uv (act fallback)
         if: ${{ env.ACT_CONTEXT == 'true' }}
         env:

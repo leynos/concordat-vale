@@ -25,8 +25,10 @@ command interception is intentionally avoided; containers execute in isolation.
   2. Commands that talk to the socket (such as `podman info`, `act ...`, or the
      pytest harness) run with escalated permissions. In this repo, use
      `ACT_WORKFLOW_TESTS=1 sudo -E make test` to exercise the workflow harness.
-  3. After running the `act` tests as root, delete the root-owned virtualenv via
-     `sudo rm -rf .venv` so subsequent non-root commands can recreate it.
+  3. The release workflow now redirects `uv` caches and the project virtualenv
+     to `/tmp` when it detects it is running under `act`, so the container no
+     longer leaves root-owned files in the workspace. If you have residue from
+     older runs, remove the `.venv` or `.uv-*` directories once, then re-run.
 - Optional but recommended: pin an image to reduce drift:
 
   ```bash

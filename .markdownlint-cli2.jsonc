@@ -16,6 +16,7 @@
     "**/node_modules/**",
     "**/target/**",
     ".terraform/**",
+    "**/.act-cache/**",
     ".uv-cache/**",
     "CRUSH.md"
   ]
