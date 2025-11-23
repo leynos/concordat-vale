@@ -1,4 +1,21 @@
-"""Packaging helpers for the stilyagi CLI."""
+r"""Packaging helpers for the stilyagi CLI.
+
+This module builds distributable ZIP archives of Concordat Vale styles.
+It exposes:
+
+- ``PackagingPaths``: filesystem locations for the project, styles, and output
+  directory.
+- ``StyleConfig``: style selection, vocabulary, and StylesPath configuration.
+- ``package_styles``: orchestrates resolution, INI rendering, and archive
+  creation.
+
+Example
+-------
+>>> paths = PackagingPaths(Path(\".\"), Path(\"styles\"), Path(\"dist\"))
+>>> config = StyleConfig()
+>>> package_styles(paths=paths, config=config, version=\"1.0.0\", force=False)
+PosixPath('.../dist/concordat-vale-1.0.0.zip')
+"""
 
 from __future__ import annotations
 
@@ -69,9 +86,11 @@ def _read_pyproject_version(root: Path) -> str | None:
     data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
     project = data.get("project", {})
     raw_version = project.get("version")
-    if isinstance(raw_version, str) and raw_version.strip():
-        return raw_version.strip()
-    return None
+    match raw_version:
+        case str(v) if v.strip():
+            return v.strip()
+        case _:
+            return None
 
 
 def _resolve_version(root: Path, override: str | None) -> str:
@@ -137,6 +156,7 @@ def _build_ini(
     styles_path_entry: str,
     vocabulary: str | None,
 ) -> str:
+    """Build .vale.ini content with StylesPath and optional Vocab entries."""
     lines = [f"StylesPath = {styles_path_entry}"]
     if vocabulary:
         lines.append(f"Vocab = {vocabulary}")

@@ -75,7 +75,8 @@ def _select_tag_and_version(payload: dict[str, typ.Any]) -> tuple[str, str]:
 def _find_asset_by_name(assets: list[typ.Any], expected_name: str) -> str | None:
     """Find an asset matching the expected name exactly."""
     for asset in assets:
-        if asset.get("name") == expected_name:
+        name = asset.get("name") if isinstance(asset, dict) else None
+        if name == expected_name:
             return expected_name
     return None
 
@@ -373,7 +374,8 @@ def _resolve_install_paths(
     resolved_root = _resolve_project_path(cwd, project_root)
     ini_path = _resolve_project_path(resolved_root, vale_ini)
     makefile_path = _resolve_project_path(resolved_root, makefile)
-    ini_path.parent.mkdir(parents=True, exist_ok=True)
+    for parent in {ini_path.parent, makefile_path.parent}:
+        parent.mkdir(parents=True, exist_ok=True)
     return resolved_root, ini_path, makefile_path
 
 

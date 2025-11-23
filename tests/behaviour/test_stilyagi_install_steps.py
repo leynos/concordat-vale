@@ -178,27 +178,35 @@ def verify_vale_ini(external_repo: Path, scenario_state: dict[str, object]) -> N
         "https://github.com/leynos/concordat-vale/releases/download/"
         f"v{version}/concordat-{version}.zip"
     )
-    assert f"Packages = {expected_url}" in ini_body
-    assert "MinAlertLevel = warning" in ini_body
-    assert "Vocab = concordat" in ini_body
-    assert "[docs/**/*.{md,markdown,mdx}]" in ini_body
-    assert "BlockIgnores = (?m)^\\[\\^\\d+\\]:" in ini_body
-    assert "concordat.Pronouns = NO" in ini_body
+    assert f"Packages = {expected_url}" in ini_body, "Packages URL should be present"
+    assert "MinAlertLevel = warning" in ini_body, "MinAlertLevel should be set"
+    assert "Vocab = concordat" in ini_body, "Vocab should be set to concordat"
+    assert "[docs/**/*.{md,markdown,mdx}]" in ini_body, "Docs section should exist"
+    assert "BlockIgnores = (?m)^\\[\\^\\d+\\]:" in ini_body, (
+        "Footnote ignore pattern should be present"
+    )
+    assert "concordat.Pronouns = NO" in ini_body, "Pronouns override should be present"
 
 
 @then("the Makefile exposes a vale target")
 def verify_makefile(external_repo: Path) -> None:
     """Check the Makefile wiring that orchestrates vale."""
     makefile = (external_repo / "Makefile").read_text(encoding="utf-8")
-    assert ".PHONY: test vale" in makefile or ".PHONY: vale test" in makefile
-    assert "vale: $(VALE) $(ACRONYM_SCRIPT) ## Check prose" in makefile
-    assert "\t$(VALE) sync" in makefile
-    assert "\t$(VALE) --no-global ." in makefile
+    assert ".PHONY: test vale" in makefile or ".PHONY: vale test" in makefile, (
+        ".PHONY line should include vale"
+    )
+    assert "vale: $(VALE) $(ACRONYM_SCRIPT) ## Check prose" in makefile, (
+        "vale target should be present"
+    )
+    assert "\t$(VALE) sync" in makefile, "vale target should sync first"
+    assert "\t$(VALE) --no-global ." in makefile, "vale target should lint workspace"
 
 
 @then("the install command fails with a release error")
 def verify_failure(scenario_state: dict[str, object]) -> None:
     """Assert the CLI surfaces release lookup failures."""
     error = scenario_state.get("error")
-    assert error is not None
-    assert "release" in str(error).lower()
+    assert error is not None, "Expected an error to be recorded"
+    assert "release" in str(error).lower(), (
+        "Error message should mention release lookup failure"
+    )
