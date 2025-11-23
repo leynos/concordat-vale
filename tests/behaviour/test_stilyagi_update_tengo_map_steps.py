@@ -143,7 +143,7 @@ def _run_update_tengo_map(
         dest_argument,
         *extra_args,
     ]
-    result = subprocess.run(  # noqa: S603, TD001  # FIXME(@assistant): false positive for S603; controlled arg list in tests; see https://github.com/leynos/concordat-vale/issues/999
+    result = subprocess.run(  # noqa: S603  # TODO @assistant: false positive for S603; controlled arg list in tests; see https://github.com/leynos/concordat-vale/issues/999
         command,
         cwd=repo_root,
         check=False,
@@ -243,7 +243,9 @@ def command_fails_invalid_type(scenario_state: ScenarioState) -> None:
     """CLI should fail for invalid --type values."""
     result = scenario_state["result"]
     assert result.returncode != 0, "Command should fail for invalid type argument"
-    assert "Invalid --type value" in result.stderr
+    assert "Invalid --type value" in result.stderr, (
+        "Error output should mention invalid type"
+    )
 
 
 @then("the allow map still contains existing entries")

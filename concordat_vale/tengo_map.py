@@ -137,6 +137,28 @@ def update_tengo_map(
 ) -> MapUpdateResult:
     """Update or append map entries inside a Tengo script.
 
+    Parameters
+    ----------
+    tengo_path
+        Path to the Tengo script containing the target map literal.
+    map_name
+        Name of the map binding to update (for example, ``allow``).
+    entries
+        Mapping of keys to values that should be merged into the map.
+
+    Returns
+    -------
+    MapUpdateResult
+        Summary of how many entries were updated and whether the file was
+        rewritten.
+
+    Raises
+    ------
+    FileNotFoundError
+        If ``tengo_path`` does not exist.
+    TengoMapError
+        If the map cannot be located or the inputs cannot be parsed.
+
     Notes
     -----
     Expects a flat map where every entry sits on its own line, ends with a
@@ -434,9 +456,11 @@ def _try_parse_float(value: str) -> float | None:
 
 def _values_equal(existing: object, new_value: object) -> bool:
     """Check semantic equality between existing and new values."""
-    if isinstance(existing, (int, float)) and isinstance(new_value, (int, float)):
-        return float(existing) == float(new_value)
-    return existing == new_value
+    match (existing, new_value):
+        case (int() | float(), int() | float()):
+            return float(existing) == float(new_value)
+        case _:
+            return existing == new_value
 
 
 def _render_entry(key: str, value: object, indent: str, comment: str) -> str:
@@ -448,11 +472,13 @@ def _render_entry(key: str, value: object, indent: str, comment: str) -> str:
 
 def _render_value(value: object) -> str:
     """Render a Python value into Tengo literal syntax."""
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, (int, float)):
-        return str(value)
-    return json.dumps(str(value))
+    match value:
+        case bool():
+            return "true" if value else "false"
+        case int() | float():
+            return str(value)
+        case _:
+            return json.dumps(str(value))
 
 
 __all__ = [
