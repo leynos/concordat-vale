@@ -145,13 +145,21 @@ def test_parse_repo_reference_valid_inputs(
 
 @pytest.mark.parametrize(
     "repo_ref",
-    ["owner", "owner/repo/xyz", "/repo", "owner/", "/"],
+    [
+        "owner",  # no slash
+        "owner/repo/xyz",  # too many segments
+        "/repo",  # missing owner
+        "owner/",  # missing repo name
+        "/",  # both segments empty
+        "   /repo",  # whitespace owner
+        "owner/   ",  # whitespace repo
+        "   /   ",  # whitespace owner and repo
+    ],
 )
 def test_parse_repo_reference_invalid_inputs(repo_ref: str) -> None:
     """_parse_repo_reference rejects malformed repo references with a clear error."""
-    with pytest.raises(ValueError, match="owner/name") as excinfo:
+    with pytest.raises(
+        ValueError,
+        match=r"Repository reference must be in the form ['\"]owner/name['\"]",
+    ):
         stilyagi._parse_repo_reference(repo_ref)  # type: ignore[attr-defined]
-
-    assert str(excinfo.value) == (
-        "Repository reference must be in the form 'owner/name'."
-    )
