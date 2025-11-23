@@ -42,9 +42,14 @@ def _fetch_latest_release(repo: str) -> dict[str, typ.Any]:
     if token := os.environ.get("GITHUB_TOKEN"):
         headers["Authorization"] = f"Bearer {token}"
 
-    request = urlrequest.Request(url, headers=headers)  # noqa: S310
+    request = urlrequest.Request(  # noqa: S310 - controlled https URL with optional token
+        url,
+        headers=headers,
+    )
     try:
-        with urlrequest.urlopen(request, timeout=10) as response:  # noqa: S310
+        with urlrequest.urlopen(  # noqa: S310 - bounded timeout over https
+            request, timeout=10
+        ) as response:
             body = response.read().decode("utf-8")
     except urlerror.HTTPError as exc:  # pragma: no cover - network edge cases
         msg = f"Failed to read latest release for {repo}: {exc.reason}"

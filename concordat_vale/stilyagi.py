@@ -241,7 +241,7 @@ def install_command(
     """Install the Concordat style into an external repository."""
     owner, repo_name, style_name = _parse_repo_reference(repo)
 
-    _resolved_root, ini_path, makefile_path = _resolve_install_paths(
+    _, ini_path, makefile_path = _resolve_install_paths(
         cwd=Path.cwd(),
         project_root=project_root,
         vale_ini=vale_ini,

@@ -81,7 +81,6 @@ def _run_install_with_mocked_release(
     external_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
     fake_fetch_fn: object,
-    capture_error: bool = False,
 ) -> dict[str, object]:
     """Run install with a mocked release fetch function."""
     import concordat_vale.stilyagi as stilyagi_module
@@ -108,15 +107,11 @@ def _run_install_with_mocked_release(
         makefile_path=makefile_path,
     )
 
-    if capture_error:
-        try:
-            install_module._perform_install(config=config)  # type: ignore[attr-defined]
-        except Exception as exc:  # noqa: BLE001
-            return {"error": exc}
-        return {"error": None}
-
-    install_module._perform_install(config=config)  # type: ignore[attr-defined]
-    return {}
+    try:
+        install_module._perform_install(config=config)  # type: ignore[attr-defined]
+    except Exception as exc:  # noqa: BLE001
+        return {"error": exc}
+    return {"error": None}
 
 
 @when("I run stilyagi install with an auto-discovered version")
@@ -128,7 +123,7 @@ def run_install_auto(
 ) -> None:
     """Invoke install without explicit version, relying on release discovery."""
 
-    def fake_fetch_latest_release(repo: str) -> dict[str, object]:
+    def fake_fetch_latest_release(_repo: str) -> dict[str, object]:
         return {
             "tag_name": "v9.9.9-auto",
             "assets": [
@@ -141,7 +136,6 @@ def run_install_auto(
         external_repo=external_repo,
         monkeypatch=monkeypatch,
         fake_fetch_fn=fake_fetch_latest_release,
-        capture_error=False,
     )
     scenario_state["expected_version"] = "9.9.9-auto"
 
@@ -155,7 +149,7 @@ def run_install_failure(
 ) -> None:
     """Invoke install where release lookup fails to ensure errors surface."""
 
-    def fake_fetch_latest_release(repo: str) -> dict[str, object]:
+    def fake_fetch_latest_release(_repo: str) -> dict[str, object]:
         raise RuntimeError("simulated release lookup failure")  # noqa: TRY003
 
     result = _run_install_with_mocked_release(
@@ -163,7 +157,6 @@ def run_install_failure(
         external_repo=external_repo,
         monkeypatch=monkeypatch,
         fake_fetch_fn=fake_fetch_latest_release,
-        capture_error=True,
     )
     scenario_state["error"] = result.get("error")
 

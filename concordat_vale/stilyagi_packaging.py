@@ -11,7 +11,17 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 @dc.dataclass
 class PackagingPaths:
-    """Encapsulates file system paths for packaging operation."""
+    """Encapsulates file system paths for packaging operation.
+
+    Parameters
+    ----------
+    project_root:
+        Root directory of the project containing styles.
+    styles_path:
+        Relative or absolute path to the styles directory.
+    output_dir:
+        Directory where the packaged archive will be written.
+    """
 
     project_root: Path
     styles_path: Path
@@ -20,7 +30,17 @@ class PackagingPaths:
 
 @dc.dataclass
 class StyleConfig:
-    """Encapsulates style selection and configuration options."""
+    """Encapsulates style selection and configuration options.
+
+    Parameters
+    ----------
+    explicit_styles:
+        Optional list of styles to include; discover all if absent.
+    vocabulary:
+        Optional vocabulary name to embed in the generated .vale.ini.
+    ini_styles_path:
+        Path written to StylesPath within the packaged .vale.ini.
+    """
 
     explicit_styles: list[str] | None = None
     vocabulary: str | None = None
@@ -42,6 +62,7 @@ def _resolve_project_path(root: Path, candidate: Path) -> Path:
 
 
 def _read_pyproject_version(root: Path) -> str | None:
+    """Read the version from pyproject.toml if present."""
     pyproject_path = root / "pyproject.toml"
     if not pyproject_path.exists():
         return None
@@ -54,6 +75,7 @@ def _read_pyproject_version(root: Path) -> str | None:
 
 
 def _resolve_version(root: Path, override: str | None) -> str:
+    """Resolve archive version from override, pyproject, or installed metadata."""
     if override:
         return override
 
@@ -99,6 +121,7 @@ def _discover_style_names(styles_root: Path, explicit: list[str] | None) -> list
 
 
 def _select_vocabulary(styles_root: Path, override: str | None) -> str | None:
+    """Select vocabulary to embed, preferring explicit override when provided."""
     if override:
         return override
 
@@ -128,6 +151,7 @@ def _add_styles_to_archive(
     archive_root: Path,
     styles: list[str],
 ) -> None:
+    """Add selected style directories (and config) to the zip archive."""
     if archive_root.is_absolute():
         msg = "StylesPath inside the archive must be a relative directory"
         raise ValueError(msg)
@@ -152,7 +176,31 @@ def package_styles(
     version: str,
     force: bool,
 ) -> Path:
-    """Create a Vale-ready ZIP archive containing styles and config."""
+    """Create a Vale-ready ZIP archive containing styles and config.
+
+    Parameters
+    ----------
+    paths:
+        File-system locations for the project, styles, and output directory.
+    config:
+        Style selection and vocab configuration options.
+    version:
+        Version string used to name the archive and embedded files.
+    force:
+        When True, allow overwriting an existing archive.
+
+    Returns
+    -------
+    Path
+        Absolute path to the generated archive.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the styles directory does not exist.
+    ValueError
+        If an absolute StylesPath is provided.
+    """
     resolved_root = paths.project_root.expanduser().resolve()
     resolved_styles = _resolve_project_path(resolved_root, paths.styles_path)
     if not resolved_styles.exists():
