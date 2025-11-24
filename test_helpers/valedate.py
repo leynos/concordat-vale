@@ -199,18 +199,21 @@ def _render_mapping_ini(mapping: cabc.Mapping[str, typ.Any]) -> str:
     lines: list[str] = []
 
     root = mapping.get("__root__", mapping.get("top", {}))
-    if isinstance(root, cabc.Mapping):
-        _emit_section(lines, root)
+    match root:
+        case mapping if isinstance(mapping, cabc.Mapping):
+            _emit_section(lines, mapping)
 
     for section, body in mapping.items():
         if section in {"__root__", "top"}:
             continue
         header = section if str(section).startswith("[") else f"[{section}]"
         lines.append("")
-        if not isinstance(body, cabc.Mapping):
-            raise InvalidIniSectionError(str(section))
-        lines.append(header)
-        _emit_section(lines, body)
+        match body:
+            case mapping if isinstance(mapping, cabc.Mapping):
+                lines.append(header)
+                _emit_section(lines, mapping)
+            case _:
+                raise InvalidIniSectionError(str(section))
 
     return "\n".join(lines).strip() + "\n"
 
