@@ -27,8 +27,8 @@ command interception is intentionally avoided; containers execute in isolation.
      `ACT_WORKFLOW_TESTS=1 sudo -E make test` to exercise the workflow harness.
   3. The release workflow now redirects `uv` caches and the project virtualenv
      to `/tmp` when it detects it is running under `act`, so the container no
-     longer leaves root-owned files in the workspace. If you have residue from
-     older runs, remove the `.venv` or `.uv-*` directories once, then re-run.
+     longer leaves root-owned files in the workspace. If residue from older runs
+     exists, remove the `.venv` or `.uv-*` directories once, then re-run.
 - Optional but recommended: pin an image to reduce drift:
 
   ```bash
