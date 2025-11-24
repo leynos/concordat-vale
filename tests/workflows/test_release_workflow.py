@@ -215,7 +215,7 @@ def test_release_workflow_sets_uv_paths_under_act(tmp_path: Path) -> None:
     _copy_repo_to(workspace_root)
     artifact_dir = tmp_path / "act-artifacts"
 
-    code, logs, dist_dir = _run_release_workflow(
+    code, logs, _dist_dir = _run_release_workflow(
         artifact_dir=artifact_dir, workspace_root=workspace_root
     )
     if code != 0:
