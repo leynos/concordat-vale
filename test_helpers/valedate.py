@@ -171,9 +171,7 @@ def _vale_supports_stdin_flag(vale_bin: str) -> bool:
 def _read_ini_from_text_or_path(text: str) -> str:
     """Return ini contents, preferring file reads when the string is a path."""
     candidate = Path(text)
-    if candidate.exists():
-        return candidate.read_text(encoding="utf-8")
-    return text
+    return candidate.read_text(encoding="utf-8") if candidate.exists() else text
 
 
 def _read_ini_from_pathlike(path_like: os.PathLike[str]) -> str:

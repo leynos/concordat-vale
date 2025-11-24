@@ -28,7 +28,7 @@ command interception is intentionally avoided; containers execute in isolation.
   3. The release workflow now redirects `uv` caches and the project virtualenv
      to `/tmp` when it detects it is running under `act`, so the container no
      longer leaves root-owned files in the workspace. If residue from older runs
-     exists, remove the `.venv` or `.uv-*` directories once, then re-run.
+     remains, remove the `.venv` or `.uv-*` directories once, then re-run.
 - Optional but recommended: pin an image to reduce drift:
 
   ```bash
