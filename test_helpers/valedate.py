@@ -318,7 +318,7 @@ class Valedate:
         Raised when ``vale_bin`` cannot be located on ``PATH``.
     """
 
-    def __init__(  # noqa: PLR0913 - constructor exposes useful toggles for tests
+    def __init__(  # noqa: PLR0913 - FIXME: keep toggles exposed for test harness
         self,
         ini: IniLike,
         *,
