@@ -42,7 +42,7 @@ if typ.TYPE_CHECKING:
     import collections.abc as cabc
     from pathlib import Path
 
-MIN_QUOTED_VALUE_LENGTH = 2
+MIN_QUOTED_VALUE_LENGTH: int = 2
 
 ENTRY_PATTERN = re.compile(
     r'^(?P<indent>\s*)"(?P<key>(?:[^"\\]|\\.)+)"\s*:\s*(?P<value>.*),'
