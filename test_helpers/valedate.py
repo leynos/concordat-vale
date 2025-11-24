@@ -200,7 +200,7 @@ def _render_mapping_ini(mapping: cabc.Mapping[str, typ.Any]) -> str:
 
     root = mapping.get("__root__", mapping.get("top", {}))
     match root:
-        case mapping if isinstance(mapping, cabc.Mapping):
+        case cabc.Mapping() as mapping:
             _emit_section(lines, mapping)
 
     for section, body in mapping.items():
@@ -209,7 +209,7 @@ def _render_mapping_ini(mapping: cabc.Mapping[str, typ.Any]) -> str:
         header = section if str(section).startswith("[") else f"[{section}]"
         lines.append("")
         match body:
-            case mapping if isinstance(mapping, cabc.Mapping):
+            case cabc.Mapping() as mapping:
                 lines.append(header)
                 _emit_section(lines, mapping)
             case _:
