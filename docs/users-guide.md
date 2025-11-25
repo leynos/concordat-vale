@@ -6,6 +6,9 @@
   entry point is available locally.
 - `stilyagi zip` should be invoked from the repository root to create a
   distributable ZIP that contains `.vale.ini` plus the full `styles/` tree.
+- When present, `stilyagi.toml` at the repository root is copied into the
+  archive. It documents the install-time defaults (style name, vocabulary, and
+  alert level) that consumer repositories should pick up automatically.
 
 ### Default workflow
 
@@ -24,6 +27,12 @@ cover Markdown, AsciiDoc, and text files.
 downloads and activates the latest Concordat release. It writes the required
 entries to `.vale.ini` and ensures the Makefile contains a `vale` target that
 performs a `vale sync` followed by a lint run.
+
+The command downloads the packaged archive to read `stilyagi.toml`, which
+defines the style name, vocabulary, and `MinAlertLevel` to write into the
+consumer `.vale.ini`. If the manifest is missing or cannot be fetched, the
+defaults remain `style_name = concordat`, `vocab = concordat`, and
+`min_alert_level = warning`.
 
 - `stilyagi install <owner>/<repo>` fetches the latest GitHub release and uses
   the matching download URL in `.vale.ini`'s `Packages` entry. For Concordat

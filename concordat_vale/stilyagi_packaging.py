@@ -244,6 +244,9 @@ def package_styles(
     archive_root = archive_dir / Path(config.ini_styles_path)
     with ZipFile(archive_path, mode="w", compression=ZIP_DEFLATED) as archive:
         archive.writestr(str(ini_member), ini_contents)
+        manifest_path = resolved_root / "stilyagi.toml"
+        if manifest_path.exists():
+            archive.write(manifest_path, arcname=str(archive_dir / "stilyagi.toml"))
         _add_styles_to_archive(
             archive,
             resolved_styles,

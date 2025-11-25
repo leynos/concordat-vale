@@ -139,6 +139,13 @@ zip -r MyStyle-1.2.3.zip .vale.ini styles/
 Attach `MyStyle-1.2.3.zip` to a GitHub Release (or host it anywhere with a
 stable URL).
 
+If a `stilyagi.toml` manifest exists at the repository root, include it in the
+archive so consumers can pick up install defaults without extra flags:
+
+```bash
+zip -r MyStyle-1.2.3.zip .vale.ini styles/ stilyagi.toml
+```
+
 Version ZIPs (e.g., SemVer) so consumers can pin or upgrade deterministically.
 
 ______________________________________________________________________

@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import typing as typ
+from pathlib import Path
 
 import pytest
 
-from concordat_vale import stilyagi
-
-if typ.TYPE_CHECKING:
-    from pathlib import Path
+from concordat_vale import stilyagi, stilyagi_install
 
 
 def test_update_vale_ini_merges_existing_values(tmp_path: Path) -> None:
@@ -179,3 +176,91 @@ def test_parse_repo_reference_invalid_inputs(repo_ref: str) -> None:
         match=r"Repository reference must be in the form ['\"]owner/name['\"]",
     ):
         stilyagi._parse_repo_reference(repo_ref)  # type: ignore[attr-defined]
+
+
+def test_parse_install_manifest_defaults() -> None:
+    """Default manifest uses provided style for vocab and alert level."""
+    manifest = stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
+        raw=None,
+        default_style_name="concordat",
+    )
+
+    assert manifest.style_name == "concordat"
+    assert manifest.vocab_name == "concordat"
+    assert manifest.min_alert_level == "warning"
+
+
+def test_parse_install_manifest_applies_overrides() -> None:
+    """Manifest fields override defaults when provided."""
+    manifest = stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
+        raw={
+            "install": {
+                "style_name": "custom-style",
+                "vocab": "custom-vocab",
+                "min_alert_level": "error",
+            }
+        },
+        default_style_name="concordat",
+    )
+
+    assert manifest.style_name == "custom-style"
+    assert manifest.vocab_name == "custom-vocab"
+    assert manifest.min_alert_level == "error"
+
+
+def test_perform_install_honours_manifest_settings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Installation uses manifest-derived style and alert level."""
+    project_root = tmp_path / "consumer"
+    project_root.mkdir()
+
+    _, ini_path, makefile_path = stilyagi_install._resolve_install_paths(  # type: ignore[attr-defined]
+        cwd=project_root,
+        project_root=Path(),
+        vale_ini=Path(".vale.ini"),
+        makefile=Path("Makefile"),
+    )
+
+    manifest = stilyagi_install.InstallManifest(
+        style_name="custom-style",
+        vocab_name="custom-vocab",
+        min_alert_level="error",
+    )
+
+    monkeypatch.setattr(
+        stilyagi_install,
+        "_load_install_manifest",
+        lambda packages_url, default_style_name: manifest,
+        raising=True,
+    )
+    monkeypatch.setattr(
+        stilyagi_install,
+        "_resolve_release",
+        lambda **_kwargs: (
+            "2.0.0",
+            "v2.0.0",
+            "https://example.test/custom-style-2.0.0.zip",
+        ),
+        raising=True,
+    )
+
+    config = stilyagi_install.InstallConfig(
+        owner="example",
+        repo_name="custom-style",
+        style_name="default-style",
+        ini_path=ini_path,
+        makefile_path=makefile_path,
+    )
+
+    message = stilyagi_install._perform_install(config=config)  # type: ignore[attr-defined]
+
+    body = ini_path.read_text(encoding="utf-8")
+    assert "MinAlertLevel = error" in body, "Manifest should set MinAlertLevel"
+    assert "Vocab = custom-vocab" in body, "Manifest should override vocab"
+    assert "BasedOnStyles = custom-style" in body, (
+        "Style name should come from manifest"
+    )
+    assert "custom-style 2.0.0" in message, (
+        "Message should reflect manifest style/version"
+    )

@@ -54,6 +54,9 @@ def staging_project(
     staging = tmp_path / "staging"
     staging.mkdir()
     shutil.copytree(repo_root / "styles", staging / "styles")
+    manifest = repo_root / "stilyagi.toml"
+    if manifest.exists():
+        shutil.copy(manifest, staging / "stilyagi.toml")
     scenario_state["project_root"] = staging
     scenario_state["expected_vocab"] = "concordat"
     return staging
@@ -157,6 +160,19 @@ def archive_has_ini(scenario_state: ScenarioState) -> None:
     else:
         assert "Vocab =" not in ini_body, "Ini should omit Vocab when none provided"
     assert "[*." not in ini_body, "Generated ini should not include file globs"
+
+
+@then("the archive includes the stilyagi configuration manifest")
+def archive_has_manifest(scenario_state: ScenarioState) -> None:
+    """Verify the manifest file is packaged alongside rules and config."""
+    archive_path = scenario_state["archive_path"]
+    with ZipFile(archive_path) as archive:
+        manifest_member = _archive_member(archive_path, "stilyagi.toml")
+        names = set(archive.namelist())
+        assert manifest_member in names, "Archive should include stilyagi.toml"
+        manifest_body = archive.read(manifest_member).decode("utf-8")
+
+    assert "[install]" in manifest_body, "Manifest content should be preserved"
 
 
 @then("the archive .vale.ini uses the STILYAGI_ environment variable values")

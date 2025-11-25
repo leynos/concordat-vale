@@ -71,6 +71,30 @@
 - Archives are written to `<output-dir>/<style-names-joined>-<version>.zip`. The
   joined style names keep the filename descriptive without requiring extra CLI
   flags.
+- When a `stilyagi.toml` file exists in the project root, `zip` copies it into
+  the archive root so downstream installs have a source of truth for default
+  settings.
+
+## stilyagi.toml manifest
+
+- Lives at the repository root alongside `styles/` and is packaged when
+  present. The manifest is intended to be a single source of truth for install
+  defaults as the rule set evolves.
+- The `install` command downloads the packaged archive, extracts
+  `stilyagi.toml`, and uses it to derive install-time defaults. Missing or
+  unreadable manifests fall back to the prior hard-coded defaults to keep the
+  command resilient to transient network issues.
+- Current fields live under an `[install]` table:
+  - `style_name` (default: repo-derived) controls the `BasedOnStyles` and
+    per-style option prefixes.
+  - `vocab` (default: `style_name`) allows vocabularies to diverge from style
+    names when needed.
+  - `min_alert_level` (default: `warning`) controls the root `MinAlertLevel`
+    written into the consumer `.vale.ini`.
+- Setting the environment variable `STILYAGI_SKIP_MANIFEST_DOWNLOAD=1` skips
+  manifest retrieval and falls back to the built-in defaults. This keeps tests
+  and offline workflows deterministic while retaining manifest support for real
+  installs.
 
 ## Testing strategy
 

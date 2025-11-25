@@ -1,0 +1,4 @@
+[install]
+style_name = "concordat"
+vocab = "concordat"
+min_alert_level = "warning"
