@@ -26,7 +26,7 @@ dev = [
 
 [tool.ruff]
 line-length = 88
-target-version = "py311"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = [
@@ -62,9 +62,11 @@ select = [
     "TRY",
     "D",
     "ANN",
+    "C90",
+    "PLR",
 ]
-per-file-ignores = {"**/test_*.py" = ["S101"]}
-ignore = ["D205"]
+per-file-ignores = {"**/test_*.py" = ["S101", "PLR2004"]}
+ignore = ["D203", "D213"]
 
 [tool.ruff.lint.flake8-import-conventions]
 # Declare the banned `from` imports.
@@ -74,19 +76,33 @@ banned-from = [
     "collections.abc",
     "dataclasses",
     "enum",
+    "unittest.mock",
     "msgspec",
 ]
 
 [tool.ruff.lint.flake8-import-conventions.aliases]
-datetime = "dt"
-typing = "typ"
-dataclasses = "dc"
+# Declare the default aliases.
+altair = "alt"
+"matplotlib.pyplot" = "plt"
+numpy = "np"
+pandas = "pd"
+seaborn = "sns"
+scipy = "sp"
 "collections.abc" = "cabc"
-"msgspec.json" = "msgspec_json"
+datetime = "dt"
+"unittest.mock" = "mock"
+"msgspec.json" = "msjson"
+typing = "typ"
 
 [tool.ruff.lint.pydocstyle]
 # Enforce NumPy docstring style
 convention = "numpy"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 9
+
+[tool.ruff.lint.pylint]
+max-args = 4
 
 [tool.pytest.ini_options]
 # Tests automatically killed after seconds elapsed

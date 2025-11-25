@@ -42,6 +42,8 @@ if typ.TYPE_CHECKING:
     import collections.abc as cabc
     from pathlib import Path
 
+MIN_QUOTED_VALUE_LENGTH: int = 2
+
 ENTRY_PATTERN = re.compile(
     r'^(?P<indent>\s*)"(?P<key>(?:[^"\\]|\\.)+)"\s*:\s*(?P<value>.*),'
     r"(?P<comment>\s*//.*)?\s*$"
@@ -370,7 +372,7 @@ def _parse_token(token: str, value_type: MapValueType) -> tuple[str, object]:
 def _parse_string_value(value: str) -> str:
     """Parse a string value, handling JSON-quoted and unquoted formats."""
     value = value.strip()
-    if len(value) >= 2 and value[0] == value[-1] == '"':
+    if len(value) >= MIN_QUOTED_VALUE_LENGTH and value[0] == value[-1] == '"':
         try:
             return typ.cast("str", json.loads(value))
         except json.JSONDecodeError:
@@ -430,7 +432,7 @@ def _try_parse_boolean(value: str) -> bool | None:
 
 def _try_parse_json_string(value: str) -> str | None:
     """Return decoded JSON string literal when surrounded by quotes."""
-    if len(value) >= 2 and value[0] == value[-1] == '"':
+    if len(value) >= MIN_QUOTED_VALUE_LENGTH and value[0] == value[-1] == '"':
         try:
             return json.loads(value)
         except json.JSONDecodeError:

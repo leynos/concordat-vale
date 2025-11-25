@@ -32,7 +32,7 @@ import typing as typ
 from pathlib import Path
 
 import msgspec
-import msgspec.json as msgspec_json
+import msgspec.json as msjson
 
 if typ.TYPE_CHECKING:
     from types import TracebackType
@@ -168,50 +168,65 @@ def _vale_supports_stdin_flag(vale_bin: str) -> bool:
     return "--stdin" in help_text
 
 
+def _read_ini_from_text_or_path(text: str) -> str:
+    """Return ini contents, preferring file reads when the string is a path."""
+    candidate = Path(text)
+    return candidate.read_text(encoding="utf-8") if candidate.exists() else text
+
+
+def _read_ini_from_pathlike(path_like: os.PathLike[str]) -> str:
+    """Read ini contents from a path-like object or raise when missing."""
+    candidate = Path(os.fspath(path_like))
+    if candidate.exists():
+        return candidate.read_text(encoding="utf-8")
+    msg = f"INI path {candidate} does not exist"
+    raise FileNotFoundError(msg)
+
+
+def _emit_section(lines: list[str], body: typ.Mapping[str, typ.Any]) -> None:
+    """Render a mapping into key/value lines for a .vale.ini section."""
+    for key, value in body.items():
+        match value:
+            case list() | tuple():
+                rendered = ", ".join(map(str, value))
+            case _:
+                rendered = str(value)
+        lines.append(f"{key} = {rendered}")
+
+
+def _render_mapping_ini(mapping: cabc.Mapping[str, typ.Any]) -> str:
+    """Render mapping-based ini input into canonical text form."""
+    lines: list[str] = []
+
+    root = mapping.get("__root__", mapping.get("top", {}))
+    match root:
+        case cabc.Mapping() as mapping_root:
+            _emit_section(lines, mapping_root)
+
+    for section, body in mapping.items():
+        if section in {"__root__", "top"}:
+            continue
+        header = section if str(section).startswith("[") else f"[{section}]"
+        lines.append("")
+        match body:
+            case cabc.Mapping() as mapping_body:
+                lines.append(header)
+                _emit_section(lines, mapping_body)
+            case _:
+                raise InvalidIniSectionError(str(section))
+
+    return "\n".join(lines).strip() + "\n"
+
+
 def _as_ini_text(ini: IniLike) -> str:
     """Normalise .vale.ini input into a text blob."""
     match ini:
         case str() as text:
-            candidate = Path(text)
-            if candidate.exists():
-                return candidate.read_text(encoding="utf-8")
-            return text
+            return _read_ini_from_text_or_path(text)
         case os.PathLike() as path_like:
-            candidate = Path(os.fspath(path_like))
-            if candidate.exists():
-                return candidate.read_text(encoding="utf-8")
-            msg = f"INI path {candidate} does not exist"
-            raise FileNotFoundError(msg)
+            return _read_ini_from_pathlike(path_like)
         case cabc.Mapping() as mapping:
-            lines: list[str] = []
-
-            def _emit_section(body: typ.Mapping[str, typ.Any]) -> None:
-                for key, value in body.items():
-                    match value:
-                        case list() | tuple():
-                            rendered = ", ".join(map(str, value))
-                        case _:
-                            rendered = str(value)
-                    lines.append(f"{key} = {rendered}")
-
-            root = mapping.get("__root__", mapping.get("top", {}))
-            match root:
-                case cabc.Mapping():
-                    _emit_section(root)
-
-            for section, body in mapping.items():
-                if section in {"__root__", "top"}:
-                    continue
-                header = section if str(section).startswith("[") else f"[{section}]"
-                lines.append("")
-                match body:
-                    case cabc.Mapping():
-                        lines.append(header)
-                        _emit_section(body)
-                    case _:
-                        raise InvalidIniSectionError(str(section))
-
-            return "\n".join(lines).strip() + "\n"
+            return _render_mapping_ini(mapping)
         case _:
             raise UnsupportedIniInputError
 
@@ -254,7 +269,7 @@ def _copy_styles_into(dst: Path, styles: Path) -> None:
 
 
 def _decode_vale_json(stdout: str) -> dict[str, list[ValeDiagnostic]]:
-    value = msgspec_json.decode(stdout)
+    value = msjson.decode(stdout)
 
     def _to_alerts(seq: object) -> list[ValeDiagnostic]:
         return msgspec.convert(seq, type=list[ValeDiagnostic])
@@ -303,7 +318,7 @@ class Valedate:
         Raised when ``vale_bin`` cannot be located on ``PATH``.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 - FIXME: keep toggles exposed for test harness
         self,
         ini: IniLike,
         *,

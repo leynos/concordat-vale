@@ -87,7 +87,7 @@ def _coerce_value_type(raw: str) -> MapValueType:
 
 
 @app.command(name="zip")
-def zip_command(
+def zip_command(  # noqa: PLR0913 - CLI command exposes explicit flags for clarity
     *,
     project_root: typ.Annotated[
         Path, Parameter(help="Root of the repository containing styles.")
@@ -196,7 +196,7 @@ def update_tengo_map_command(
 
 
 @app.command(name="install")
-def install_command(
+def install_command(  # noqa: PLR0913 - CLI command exposes explicit flags for clarity
     repo: typ.Annotated[
         str, Parameter(help="GitHub repository reference in owner/name form.")
     ],
