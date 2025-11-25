@@ -71,9 +71,10 @@ def _extract_uv_env(logs: str) -> dict[str, str]:
     """Return UV_* environment variables emitted by the workflow."""
     extracted: dict[str, str] = {}
     for line in logs.splitlines():
-        if not line.startswith("UV_ENV "):
+        stripped_line = line.strip()
+        if not stripped_line.startswith("UV_ENV "):
             continue
-        _, remainder = line.split(" ", 1)
+        _, remainder = stripped_line.split(" ", 1)
         if "=" not in remainder:
             continue
         key, value = remainder.split("=", 1)
@@ -167,11 +168,11 @@ def test_release_workflow_packages_archive(tmp_path: Path) -> None:
     existing_archives = {path.name for path in dist_dir.glob("*.zip")}
     start_ts = time.time()
 
-    code, logs, dist_dir = _run_release_workflow(artifact_dir=artifact_dir)
+    code, logs, workflow_dist_dir = _run_release_workflow(artifact_dir=artifact_dir)
     if code != 0:
         pytest.fail(f"act workflow_dispatch failed with exit code {code}:\n{logs}")
 
-    archive = dist_dir / "concordat-0.1.0.zip"
+    archive = workflow_dist_dir / "concordat-0.1.0.zip"
     assert archive.exists(), f"release workflow did not emit archive:\n{logs}"
     assert archive.stat().st_size > 0, "archive should never be empty"
     assert archive.stat().st_mtime >= start_ts, (
