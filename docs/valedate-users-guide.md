@@ -3,15 +3,14 @@
 Use `valedate` to exercise Vale rulesets inside pytest. The harness spins up an
 isolated working directory with its own `.vale.ini` and `styles/` tree, invokes
 the real `vale` binary, and returns structured diagnostics to assert against.
-Install it from PyPI instead of relying on a vendored copy so the helper can
+Install it from PyPI instead of relying on a vendored copy, so the helper can
 evolve independently of this repository.
 
 ## Prerequisites
 
 - Python 3.10 or newer
-- The Vale CLI installed and available on `PATH`
-- The PyPI package `valedate` installed (for example, `pip install
-  valedate==0.1.0b1`)
+- The Vale Command-Line Interface (CLI) installed and available on `PATH`
+- PyPI `valedate` (e.g., `pip install valedate==0.1.0b1`)
 
 The harness intentionally shells out to Vale rather than mocking it. Tests are
 expected to reflect how the ruleset behaves in production.
