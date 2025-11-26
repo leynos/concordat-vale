@@ -85,6 +85,7 @@ class _TestPaths:
 
     repo_root: Path
     external_repo: Path
+    tmp_path: Path
 
 
 def _run_install_with_mocked_release(
@@ -126,6 +127,14 @@ def _run_install_with_mocked_release(
     return {"error": None}
 
 
+@pytest.fixture
+def test_paths(repo_root: Path, external_repo: Path, tmp_path: Path) -> _TestPaths:
+    """Bundle shared paths for install behavioural scenarios."""
+    return _TestPaths(
+        repo_root=repo_root, external_repo=external_repo, tmp_path=tmp_path
+    )
+
+
 def _build_manifest_archive(path: Path, *, manifest_body: str) -> Path:
     """Create a minimal archive containing the supplied stilyagi.toml."""
     archive_path = path / "concordat-configured.zip"
@@ -138,8 +147,7 @@ def _build_manifest_archive(path: Path, *, manifest_body: str) -> Path:
 
 @when("I run stilyagi install with an auto-discovered version")
 def run_install_auto(
-    repo_root: Path,
-    external_repo: Path,
+    test_paths: _TestPaths,
     monkeypatch: pytest.MonkeyPatch,
     scenario_state: dict[str, object],
 ) -> None:
@@ -153,9 +161,8 @@ def run_install_auto(
             ],
         }
 
-    paths = _TestPaths(repo_root=repo_root, external_repo=external_repo)
     _run_install_with_mocked_release(
-        paths=paths,
+        paths=test_paths,
         monkeypatch=monkeypatch,
         fake_fetch_fn=fake_fetch_latest_release,
     )
@@ -164,8 +171,7 @@ def run_install_auto(
 
 @when("I run stilyagi install with a failing release lookup")
 def run_install_failure(
-    repo_root: Path,
-    external_repo: Path,
+    test_paths: _TestPaths,
     monkeypatch: pytest.MonkeyPatch,
     scenario_state: dict[str, object],
 ) -> None:
@@ -174,9 +180,8 @@ def run_install_failure(
     def fake_fetch_latest_release(_repo: str) -> dict[str, object]:
         raise RuntimeError("simulated release lookup failure")  # noqa: TRY003
 
-    paths = _TestPaths(repo_root=repo_root, external_repo=external_repo)
     result = _run_install_with_mocked_release(
-        paths=paths,
+        paths=test_paths,
         monkeypatch=monkeypatch,
         fake_fetch_fn=fake_fetch_latest_release,
     )
@@ -184,10 +189,8 @@ def run_install_failure(
 
 
 @when("I run stilyagi install with a packaged configuration")
-def run_install_with_manifest(  # noqa: PLR0913 - pytest fixtures define signature
-    repo_root: Path,
-    external_repo: Path,
-    tmp_path: Path,
+def run_install_with_manifest(
+    test_paths: _TestPaths,
     monkeypatch: pytest.MonkeyPatch,
     scenario_state: dict[str, object],
 ) -> None:
@@ -198,7 +201,9 @@ vocab = "manifest-vocab"
 min_alert_level = "error"
 """
 
-    archive_path = _build_manifest_archive(tmp_path, manifest_body=manifest_body)
+    archive_path = _build_manifest_archive(
+        test_paths.tmp_path, manifest_body=manifest_body
+    )
     packages_url = archive_path.as_uri()
 
     import concordat_vale.stilyagi_install as install_module
@@ -223,8 +228,8 @@ min_alert_level = "error"
         "leynos/concordat-vale"
     )
     _, ini_path, makefile_path = install_module._resolve_install_paths(  # type: ignore[attr-defined]
-        cwd=repo_root,
-        project_root=external_repo,
+        cwd=test_paths.repo_root,
+        project_root=test_paths.external_repo,
         vale_ini=Path(".vale.ini"),
         makefile=Path("Makefile"),
     )

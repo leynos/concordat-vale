@@ -23,8 +23,12 @@ BasedOnStyles = Vale
 
     stilyagi._update_vale_ini(  # type: ignore[attr-defined]
         ini_path=ini_path,
-        style_name="concordat",
         packages_url="https://example.test/v9.9.9/concordat-9.9.9.zip",
+        manifest=stilyagi_install.InstallManifest(
+            style_name="concordat",
+            vocab_name="concordat",
+            min_alert_level="warning",
+        ),
     )
 
     body = ini_path.read_text(encoding="utf-8")
@@ -45,8 +49,12 @@ def test_update_vale_ini_creates_file_and_orders_sections(tmp_path: Path) -> Non
     ini_path = tmp_path / ".vale.ini"
     stilyagi._update_vale_ini(  # type: ignore[attr-defined]
         ini_path=ini_path,
-        style_name="concordat",
         packages_url="https://example.test/v1.0.0/concordat-1.0.0.zip",
+        manifest=stilyagi_install.InstallManifest(
+            style_name="concordat",
+            vocab_name="concordat",
+            min_alert_level="warning",
+        ),
     )
 
     body = ini_path.read_text(encoding="utf-8")

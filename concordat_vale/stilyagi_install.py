@@ -325,38 +325,33 @@ def _merge_and_order_section(
     return ordered
 
 
-def _update_vale_ini(  # noqa: PLR0913 - explicit config inputs keep logic clear
-    *,
-    ini_path: Path,
-    style_name: str,
-    packages_url: str,
-    vocab_name: str | None = None,
-    min_alert_level: str = "warning",
+def _update_vale_ini(
+    *, ini_path: Path, packages_url: str, manifest: InstallManifest
 ) -> None:
     """Ensure ``.vale.ini`` advertises the Concordat package and sections."""
     root_options, sections = _parse_ini(ini_path)
     root_options.update(
         {
             "Packages": packages_url,
-            "MinAlertLevel": min_alert_level,
-            "Vocab": vocab_name or style_name,
+            "MinAlertLevel": manifest.min_alert_level,
+            "Vocab": manifest.vocab_name or manifest.style_name,
         }
     )
 
     required_sections: dict[str, dict[str, str]] = {
         "docs/**/*.{md,markdown,mdx}": {
-            "BasedOnStyles": style_name,
+            "BasedOnStyles": manifest.style_name,
             "BlockIgnores": FOOTNOTE_REGEX,
         },
-        "AGENTS.md": {"BasedOnStyles": style_name},
+        "AGENTS.md": {"BasedOnStyles": manifest.style_name},
         "*.{rs,ts,js,sh,py}": {
-            "BasedOnStyles": style_name,
-            f"{style_name}.RustNoRun": "NO",
-            f"{style_name}.Acronyms": "NO",
+            "BasedOnStyles": manifest.style_name,
+            f"{manifest.style_name}.RustNoRun": "NO",
+            f"{manifest.style_name}.Acronyms": "NO",
         },
         "README.md": {
-            "BasedOnStyles": style_name,
-            f"{style_name}.Pronouns": "NO",
+            "BasedOnStyles": manifest.style_name,
+            f"{manifest.style_name}.Pronouns": "NO",
         },
     }
 
@@ -496,10 +491,8 @@ def _perform_install(
 
     _update_vale_ini(
         ini_path=config.ini_path,
-        style_name=manifest.style_name,
         packages_url=packages_url,
-        vocab_name=manifest.vocab_name,
-        min_alert_level=manifest.min_alert_level,
+        manifest=manifest,
     )
     _update_makefile(config.makefile_path)
 
