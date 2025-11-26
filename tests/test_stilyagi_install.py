@@ -201,74 +201,83 @@ def test_parse_install_manifest_defaults() -> None:
     assert manifest.min_alert_level == "warning"
 
 
-def test_parse_install_manifest_applies_overrides() -> None:
-    """Manifest fields override defaults when provided."""
+@pytest.mark.parametrize(
+    (
+        "test_id",
+        "raw_input",
+        "expected_style",
+        "expected_vocab",
+        "expected_min_alert",
+    ),
+    [
+        (
+            "applies_overrides",
+            {
+                "install": {
+                    "style_name": "custom-style",
+                    "vocab": "custom-vocab",
+                    "min_alert_level": "error",
+                }
+            },
+            "custom-style",
+            "custom-vocab",
+            "error",
+        ),
+        (
+            "partial_missing_vocab",
+            {
+                "install": {
+                    "style_name": "custom-style",
+                    "min_alert_level": "error",
+                }
+            },
+            "custom-style",
+            "custom-style",
+            "error",
+        ),
+        (
+            "partial_missing_min_alert_level",
+            {
+                "install": {
+                    "style_name": "custom-style",
+                    "vocab": "custom-vocab",
+                }
+            },
+            "custom-style",
+            "custom-vocab",
+            "warning",
+        ),
+        (
+            "whitespace_only_fields",
+            {
+                "install": {
+                    "style_name": "   ",
+                    "vocab": " \t ",
+                    "min_alert_level": "  ",
+                }
+            },
+            "concordat",
+            "concordat",
+            "warning",
+        ),
+    ],
+)
+def test_parse_install_manifest_overrides(  # noqa: PLR0913 - explicit params aid assertions
+    test_id: str,
+    raw_input: dict[str, object],
+    expected_style: str,
+    expected_vocab: str,
+    expected_min_alert: str,
+) -> None:
+    """Manifest fields are normalised according to provided overrides."""
     manifest = stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
-        raw={
-            "install": {
-                "style_name": "custom-style",
-                "vocab": "custom-vocab",
-                "min_alert_level": "error",
-            }
-        },
+        raw=raw_input,
         default_style_name="concordat",
     )
 
-    assert manifest.style_name == "custom-style"
-    assert manifest.vocab_name == "custom-vocab"
-    assert manifest.min_alert_level == "error"
-
-
-def test_parse_install_manifest_partial_missing_vocab() -> None:
-    """Defaults vocab to style when manifest omits vocab."""
-    manifest = stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
-        raw={
-            "install": {
-                "style_name": "custom-style",
-                "min_alert_level": "error",
-            }
-        },
-        default_style_name="concordat",
-    )
-
-    assert manifest.style_name == "custom-style"
-    assert manifest.vocab_name == "custom-style"
-    assert manifest.min_alert_level == "error"
-
-
-def test_parse_install_manifest_partial_missing_min_alert_level() -> None:
-    """Defaults min_alert_level when it is missing."""
-    manifest = stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
-        raw={
-            "install": {
-                "style_name": "custom-style",
-                "vocab": "custom-vocab",
-            }
-        },
-        default_style_name="concordat",
-    )
-
-    assert manifest.style_name == "custom-style"
-    assert manifest.vocab_name == "custom-vocab"
-    assert manifest.min_alert_level == "warning"
-
-
-def test_parse_install_manifest_whitespace_only_fields() -> None:
-    """Whitespace-only fields fall back to defaults."""
-    manifest = stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
-        raw={
-            "install": {
-                "style_name": "   ",
-                "vocab": " \t ",
-                "min_alert_level": "  ",
-            }
-        },
-        default_style_name="concordat",
-    )
-
-    assert manifest.style_name == "concordat"
-    assert manifest.vocab_name == "concordat"
-    assert manifest.min_alert_level == "warning"
+    assert manifest.style_name == expected_style
+    assert manifest.vocab_name == expected_vocab
+    assert manifest.min_alert_level == expected_min_alert
 
 
 def test_parse_install_manifest_non_mapping_raw_uses_defaults() -> None:
