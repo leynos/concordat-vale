@@ -318,7 +318,7 @@ def test_perform_install_honours_manifest_settings(
     monkeypatch.setattr(
         stilyagi_install,
         "_load_install_manifest",
-        lambda packages_url, default_style_name: manifest,
+        lambda **_kwargs: manifest,
         raising=True,
     )
     monkeypatch.setattr(
@@ -451,6 +451,7 @@ def test_load_install_manifest_falls_back_on_download_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Download errors return the default manifest."""
+
     def _download_fail(*_args: object, **_kwargs: object) -> bytes:
         raise RuntimeError
 

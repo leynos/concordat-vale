@@ -5,6 +5,7 @@ from __future__ import annotations
 import dataclasses as dc
 import io
 import json
+import logging
 import os
 import re
 import tomllib
@@ -17,6 +18,9 @@ from .stilyagi_packaging import _resolve_project_path
 
 if typ.TYPE_CHECKING:
     from pathlib import Path
+
+
+logger = logging.getLogger(__name__)
 
 FOOTNOTE_REGEX = r"(?m)^\[\^\d+\]:[^\n]*(?:\n[ \t]+[^\n]*)*"
 
@@ -206,6 +210,7 @@ def _load_install_manifest(
 ) -> InstallManifest:
     """Load the install manifest from the packaged archive if available."""
     raw_manifest: dict[str, typ.Any] | None = None
+    manifest_bytes: bytes | None = None
 
     if not os.environ.get("STILYAGI_SKIP_MANIFEST_DOWNLOAD"):
         try:
@@ -213,8 +218,13 @@ def _load_install_manifest(
             manifest_bytes = _extract_stilyagi_toml(archive_bytes)
             if manifest_bytes is not None:
                 raw_manifest = tomllib.loads(manifest_bytes.decode("utf-8"))
-        except Exception:  # noqa: BLE001 - fallback is intentional for robustness
-            raw_manifest = None
+        except Exception as exc:  # noqa: BLE001 - fallback is intentional for robustness
+            logger.debug(
+                "Failed to load stilyagi.toml from %s (manifest_found=%s)",
+                packages_url,
+                manifest_bytes is not None,
+                exc_info=exc,
+            )
 
     return _parse_install_manifest(
         raw=raw_manifest, default_style_name=default_style_name
@@ -335,7 +345,7 @@ def _update_vale_ini(
         {
             "Packages": packages_url,
             "MinAlertLevel": manifest.min_alert_level,
-            "Vocab": manifest.vocab_name or manifest.style_name,
+            "Vocab": manifest.vocab_name,
         }
     )
 

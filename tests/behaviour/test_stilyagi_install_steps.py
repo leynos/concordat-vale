@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 from zipfile import ZipFile
 
 import pytest
@@ -216,9 +217,9 @@ min_alert_level = "error"
     )
 
     def _read_local_archive(url: str) -> bytes:
-        if url.startswith("file://"):
-            return Path(url.replace("file://", "")).read_bytes()
-        return Path(url).read_bytes()
+        parsed = urlparse(url)
+        path = Path(parsed.path) if parsed.scheme == "file" else Path(url)
+        return path.read_bytes()
 
     monkeypatch.setattr(
         install_module, "_download_packages_archive", _read_local_archive, raising=True
