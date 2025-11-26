@@ -16,12 +16,12 @@ stilyagi = "concordat_vale.stilyagi:main"
 [dependency-groups]
 dev = [
     "pytest",
-	"msgspec",
-	"pytest-xdist",
+    "pytest-xdist",
     "ruff",
     "pytest-timeout",
     "pytest-bdd",
     "parse_type",
+    "valedate==0.1.0b1",
 ]
 
 [tool.ruff]

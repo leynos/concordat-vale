@@ -6,8 +6,7 @@ import typing as typ
 from pathlib import Path
 
 import pytest
-
-from test_helpers.valedate import Valedate
+from valedate import Valedate
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _STYLES = _REPO_ROOT / "styles"

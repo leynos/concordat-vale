@@ -6,7 +6,7 @@ import textwrap
 import typing as typ
 
 if typ.TYPE_CHECKING:
-    from test_helpers.valedate import Valedate
+    from valedate import Valedate
 
 
 def test_prefer_our_flags_american_spelling(concordat_vale: Valedate) -> None:

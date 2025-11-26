@@ -30,13 +30,13 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "msgspec" },
     { name = "parse-type" },
     { name = "pytest" },
     { name = "pytest-bdd" },
     { name = "pytest-timeout" },
     { name = "pytest-xdist" },
     { name = "ruff" },
+    { name = "valedate" },
 ]
 
 [package.metadata]
@@ -44,13 +44,13 @@ requires-dist = [{ name = "cyclopts", specifier = ">=2.9" }]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "msgspec" },
     { name = "parse-type" },
     { name = "pytest" },
     { name = "pytest-bdd" },
     { name = "pytest-timeout" },
     { name = "pytest-xdist" },
     { name = "ruff" },
+    { name = "valedate", specifier = "==0.1.0b1" },
 ]
 
 [[package]]
@@ -389,4 +389,16 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/72/94/1a15dd82efb362ac84269196e94cf00f187f7ed21c242792a923cdb1c61f/typing_extensions-4.15.0.tar.gz", hash = "sha256:0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466", size = 109391, upload-time = "2025-08-25T13:49:26.313Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/18/67/36e9267722cc04a6b9f15c7f3441c2363321a3ea07da7ae0c0707beb2a9c/typing_extensions-4.15.0-py3-none-any.whl", hash = "sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548", size = 44614, upload-time = "2025-08-25T13:49:24.86Z" },
+]
+
+[[package]]
+name = "valedate"
+version = "0.1.0b1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "msgspec" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ed/cc/d224db07b9ece20660eebe82931f70ce8e4bdf39acf1cd6e6261cf19e1f1/valedate-0.1.0b1.tar.gz", hash = "sha256:a00a67a4f6529222106b5a39a773efbc2a1c0abbf43744e662798644cd250226", size = 11493, upload-time = "2025-11-26T00:30:23.195Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ef/55/f035766f327836f6a7d3e2ccf052c86377fa1fba309b38703dff4224cb71/valedate-0.1.0b1-py3-none-any.whl", hash = "sha256:7929857e78fbf6997d0d970a234255d9a60840a7435f16879ad71190473b8a43", size = 10203, upload-time = "2025-11-26T00:30:21.644Z" },
 ]

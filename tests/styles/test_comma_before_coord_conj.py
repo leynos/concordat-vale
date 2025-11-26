@@ -19,7 +19,7 @@ import textwrap
 import typing as typ
 
 if typ.TYPE_CHECKING:
-    from test_helpers.valedate import Valedate
+    from valedate import Valedate
 
 
 def test_comma_before_coord_conj_flags_missing_comma_with_but(

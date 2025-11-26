@@ -16,7 +16,7 @@ import textwrap
 import typing as typ
 
 if typ.TYPE_CHECKING:
-    from test_helpers.valedate import Valedate
+    from valedate import Valedate
 
 
 def test_no_ly_adverb_hyphen_flags_hyphenated_adverbs(
