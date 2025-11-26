@@ -3,17 +3,24 @@
 from __future__ import annotations
 
 import dataclasses as dc
+import io
 import json
+import logging
 import os
 import re
+import tomllib
 import typing as typ
 from urllib import error as urlerror
 from urllib import request as urlrequest
+from zipfile import ZipFile
 
 from .stilyagi_packaging import _resolve_project_path
 
 if typ.TYPE_CHECKING:
     from pathlib import Path
+
+
+logger = logging.getLogger(__name__)
 
 FOOTNOTE_REGEX = r"(?m)^\[\^\d+\]:[^\n]*(?:\n[ \t]+[^\n]*)*"
 
@@ -137,6 +144,93 @@ def _resolve_release(
     return version, tag, packages_url
 
 
+@dc.dataclass(frozen=True)
+class InstallManifest:
+    """Configuration extracted from a packaged stilyagi.toml."""
+
+    style_name: str
+    vocab_name: str
+    min_alert_level: str
+
+
+def _parse_install_manifest(
+    *, raw: dict[str, typ.Any] | None, default_style_name: str
+) -> InstallManifest:
+    """Return manifest values with sensible defaults and whitespace trimmed."""
+    install_section_raw = raw.get("install", {}) if isinstance(raw, dict) else {}
+    install_section = (
+        install_section_raw if isinstance(install_section_raw, dict) else {}
+    )
+
+    def _pick(value: object, fallback: str) -> str:
+        return value.strip() if isinstance(value, str) and value.strip() else fallback
+
+    style_name = _pick(install_section.get("style_name"), default_style_name)
+    vocab_name = _pick(install_section.get("vocab"), style_name)
+    min_alert_level = _pick(install_section.get("min_alert_level"), "warning")
+
+    return InstallManifest(
+        style_name=style_name,
+        vocab_name=vocab_name,
+        min_alert_level=min_alert_level,
+    )
+
+
+def _download_packages_archive(packages_url: str) -> bytes:
+    """Download the packaged archive bytes for inspection."""
+    request = urlrequest.Request(  # noqa: S310 - URL is user-provided CLI input
+        packages_url,
+        headers={"User-Agent": "stilyagi/1.0"},
+    )
+    try:
+        with urlrequest.urlopen(request, timeout=15) as response:  # noqa: S310
+            return response.read()
+    except urlerror.HTTPError as exc:  # pragma: no cover - network edge cases
+        msg = f"Failed to download archive {packages_url}: {exc.reason}"
+        raise RuntimeError(msg) from exc
+    except urlerror.URLError as exc:  # pragma: no cover - network edge cases
+        msg = f"Network error downloading {packages_url}: {exc.reason}"
+        raise RuntimeError(msg) from exc
+
+
+def _extract_stilyagi_toml(archive_bytes: bytes) -> bytes | None:
+    """Extract stilyagi.toml from archive bytes when present."""
+    with ZipFile(io.BytesIO(archive_bytes)) as archive:
+        try:
+            member = next(
+                name for name in archive.namelist() if name.endswith("stilyagi.toml")
+            )
+        except StopIteration:
+            return None
+        return archive.read(member)
+
+
+def _load_install_manifest(
+    *, packages_url: str, default_style_name: str
+) -> InstallManifest:
+    """Load the install manifest from the packaged archive if available."""
+    raw_manifest: dict[str, typ.Any] | None = None
+    manifest_bytes: bytes | None = None
+
+    if not os.environ.get("STILYAGI_SKIP_MANIFEST_DOWNLOAD"):
+        try:
+            archive_bytes = _download_packages_archive(packages_url)
+            manifest_bytes = _extract_stilyagi_toml(archive_bytes)
+            if manifest_bytes is not None:
+                raw_manifest = tomllib.loads(manifest_bytes.decode("utf-8"))
+        except Exception as exc:  # noqa: BLE001 - fallback is intentional for robustness
+            logger.debug(
+                "Failed to load stilyagi.toml from %s (manifest_found=%s)",
+                packages_url,
+                manifest_bytes is not None,
+                exc_info=exc,
+            )
+
+    return _parse_install_manifest(
+        raw=raw_manifest, default_style_name=default_style_name
+    )
+
+
 def _render_root_options(
     root_options: dict[str, str], root_priority: tuple[str, ...]
 ) -> list[str]:
@@ -243,35 +337,32 @@ def _merge_and_order_section(
 
 
 def _update_vale_ini(
-    *,
-    ini_path: Path,
-    style_name: str,
-    packages_url: str,
+    *, ini_path: Path, packages_url: str, manifest: InstallManifest
 ) -> None:
     """Ensure ``.vale.ini`` advertises the Concordat package and sections."""
     root_options, sections = _parse_ini(ini_path)
     root_options.update(
         {
             "Packages": packages_url,
-            "MinAlertLevel": "warning",
-            "Vocab": style_name,
+            "MinAlertLevel": manifest.min_alert_level,
+            "Vocab": manifest.vocab_name,
         }
     )
 
     required_sections: dict[str, dict[str, str]] = {
         "docs/**/*.{md,markdown,mdx}": {
-            "BasedOnStyles": style_name,
+            "BasedOnStyles": manifest.style_name,
             "BlockIgnores": FOOTNOTE_REGEX,
         },
-        "AGENTS.md": {"BasedOnStyles": style_name},
+        "AGENTS.md": {"BasedOnStyles": manifest.style_name},
         "*.{rs,ts,js,sh,py}": {
-            "BasedOnStyles": style_name,
-            f"{style_name}.RustNoRun": "NO",
-            f"{style_name}.Acronyms": "NO",
+            "BasedOnStyles": manifest.style_name,
+            f"{manifest.style_name}.RustNoRun": "NO",
+            f"{manifest.style_name}.Acronyms": "NO",
         },
         "README.md": {
-            "BasedOnStyles": style_name,
-            f"{style_name}.Pronouns": "NO",
+            "BasedOnStyles": manifest.style_name,
+            f"{manifest.style_name}.Pronouns": "NO",
         },
     }
 
@@ -404,15 +495,20 @@ def _perform_install(
         override_tag=config.override_tag,
     )
 
+    manifest = _load_install_manifest(
+        packages_url=packages_url,
+        default_style_name=config.style_name,
+    )
+
     _update_vale_ini(
         ini_path=config.ini_path,
-        style_name=config.style_name,
         packages_url=packages_url,
+        manifest=manifest,
     )
     _update_makefile(config.makefile_path)
 
     message = (
-        f"Installed {config.style_name} {version_str} from "
+        f"Installed {manifest.style_name} {version_str} from "
         f"{config.owner}/{config.repo_name} into {config.ini_path} and "
         f"{config.makefile_path}"
     )
@@ -422,6 +518,11 @@ def _perform_install(
 
 __all__ = [
     "FOOTNOTE_REGEX",
+    "InstallManifest",
+    "_download_packages_archive",
+    "_extract_stilyagi_toml",
+    "_load_install_manifest",
+    "_parse_install_manifest",
     "_parse_repo_reference",
     "_perform_install",
     "_resolve_install_paths",

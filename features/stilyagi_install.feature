@@ -11,6 +11,11 @@ Feature: Install the Concordat Vale style into another repository
     Then the external repository has a configured .vale.ini
     And the Makefile exposes a vale target
 
+  Scenario: Install honours stilyagi configuration packaged with the rules
+    Given an external repository without Vale wiring
+    When I run stilyagi install with a packaged configuration
+    Then the external repository reflects the stilyagi configuration
+
   Scenario: Release lookup failure surfaces an error
     Given an external repository without Vale wiring
     When I run stilyagi install with a failing release lookup

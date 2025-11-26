@@ -212,3 +212,32 @@ def test_package_styles_respects_ini_styles_path(sample_project: Path) -> None:
     assert "StylesPath = custom_styles" in ini_body, (
         "Expected .vale.ini to contain 'StylesPath = custom_styles'"
     )
+
+
+def test_package_styles_includes_stilyagi_manifest(sample_project: Path) -> None:
+    """Package stilyagi.toml at the archive root when present."""
+    (sample_project / "stilyagi.toml").write_text(
+        """[install]
+style_name = "concordat"
+min_alert_level = "error"
+""",
+        encoding="utf-8",
+    )
+
+    paths, config = _default_paths_and_config(sample_project)
+    archive_path = package_styles(
+        paths=paths,
+        config=config,
+        version="1.2.3",
+        force=False,
+    )
+
+    with ZipFile(archive_path) as archive:
+        names = set(archive.namelist())
+        manifest_member = _zip_member(archive_path, "stilyagi.toml")
+        assert manifest_member in names, "Archive should include stilyagi.toml"
+        manifest_body = archive.read(manifest_member).decode("utf-8")
+
+    assert 'style_name = "concordat"' in manifest_body, (
+        "stilyagi.toml content should be preserved in archive"
+    )

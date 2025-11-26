@@ -4,6 +4,7 @@ Feature: Package the Concordat Vale style
     When I run stilyagi zip for that staging project
     Then a zip archive is emitted in its dist directory
     And the archive includes the concordat content and config
+    And the archive includes the stilyagi configuration manifest
     And the archive contains a .vale.ini listing only the core settings
 
   Scenario: STILYAGI environment overrides influence the CLI
@@ -12,4 +13,5 @@ Feature: Package the Concordat Vale style
     When I run stilyagi zip for that staging project
     Then a zip archive is emitted in its dist directory
     And the archive includes the concordat content and config
+    And the archive includes the stilyagi configuration manifest
     And the archive .vale.ini uses the STILYAGI_ environment variable values

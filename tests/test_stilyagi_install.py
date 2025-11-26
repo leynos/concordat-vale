@@ -2,14 +2,24 @@
 
 from __future__ import annotations
 
+import dataclasses as dc
+import io
 import typing as typ
+from pathlib import Path
+from zipfile import ZipFile
 
 import pytest
 
-from concordat_vale import stilyagi
+from concordat_vale import stilyagi, stilyagi_install
 
-if typ.TYPE_CHECKING:
-    from pathlib import Path
+
+@dc.dataclass
+class _ExpectedManifest:
+    """Expected values for manifest parsing assertions."""
+
+    style: str
+    vocab: str
+    min_alert: str
 
 
 def test_update_vale_ini_merges_existing_values(tmp_path: Path) -> None:
@@ -26,8 +36,12 @@ BasedOnStyles = Vale
 
     stilyagi._update_vale_ini(  # type: ignore[attr-defined]
         ini_path=ini_path,
-        style_name="concordat",
         packages_url="https://example.test/v9.9.9/concordat-9.9.9.zip",
+        manifest=stilyagi_install.InstallManifest(
+            style_name="concordat",
+            vocab_name="concordat",
+            min_alert_level="warning",
+        ),
     )
 
     body = ini_path.read_text(encoding="utf-8")
@@ -48,8 +62,12 @@ def test_update_vale_ini_creates_file_and_orders_sections(tmp_path: Path) -> Non
     ini_path = tmp_path / ".vale.ini"
     stilyagi._update_vale_ini(  # type: ignore[attr-defined]
         ini_path=ini_path,
-        style_name="concordat",
         packages_url="https://example.test/v1.0.0/concordat-1.0.0.zip",
+        manifest=stilyagi_install.InstallManifest(
+            style_name="concordat",
+            vocab_name="concordat",
+            min_alert_level="warning",
+        ),
     )
 
     body = ini_path.read_text(encoding="utf-8")
@@ -179,3 +197,287 @@ def test_parse_repo_reference_invalid_inputs(repo_ref: str) -> None:
         match=r"Repository reference must be in the form ['\"]owner/name['\"]",
     ):
         stilyagi._parse_repo_reference(repo_ref)  # type: ignore[attr-defined]
+
+
+def test_parse_install_manifest_defaults() -> None:
+    """Default manifest uses provided style for vocab and alert level."""
+    manifest = stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
+        raw=None,
+        default_style_name="concordat",
+    )
+
+    assert manifest.style_name == "concordat"
+    assert manifest.vocab_name == "concordat"
+    assert manifest.min_alert_level == "warning"
+
+
+@pytest.mark.parametrize(
+    (
+        "test_id",
+        "raw_input",
+        "expected",
+    ),
+    [
+        (
+            "applies_overrides",
+            {
+                "install": {
+                    "style_name": "custom-style",
+                    "vocab": "custom-vocab",
+                    "min_alert_level": "error",
+                }
+            },
+            _ExpectedManifest(
+                style="custom-style", vocab="custom-vocab", min_alert="error"
+            ),
+        ),
+        (
+            "partial_missing_vocab",
+            {
+                "install": {
+                    "style_name": "custom-style",
+                    "min_alert_level": "error",
+                }
+            },
+            _ExpectedManifest(
+                style="custom-style", vocab="custom-style", min_alert="error"
+            ),
+        ),
+        (
+            "partial_missing_min_alert_level",
+            {
+                "install": {
+                    "style_name": "custom-style",
+                    "vocab": "custom-vocab",
+                }
+            },
+            _ExpectedManifest(
+                style="custom-style", vocab="custom-vocab", min_alert="warning"
+            ),
+        ),
+        (
+            "whitespace_only_fields",
+            {
+                "install": {
+                    "style_name": "   ",
+                    "vocab": " \t ",
+                    "min_alert_level": "  ",
+                }
+            },
+            _ExpectedManifest(
+                style="concordat", vocab="concordat", min_alert="warning"
+            ),
+        ),
+    ],
+)
+def test_parse_install_manifest_overrides(
+    test_id: str,
+    raw_input: dict[str, object],
+    expected: _ExpectedManifest,
+) -> None:
+    """Manifest fields are normalised according to provided overrides."""
+    manifest = stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
+        raw=raw_input,
+        default_style_name="concordat",
+    )
+
+    assert manifest.style_name == expected.style
+    assert manifest.vocab_name == expected.vocab
+    assert manifest.min_alert_level == expected.min_alert
+
+
+def test_parse_install_manifest_non_mapping_raw_uses_defaults() -> None:
+    """Non-dict manifest inputs fall back to defaults."""
+    manifest = stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
+        raw=typ.cast("dict[str, object] | None", "not-a-dict"),
+        default_style_name="concordat",
+    )
+
+    assert manifest.style_name == "concordat"
+    assert manifest.vocab_name == "concordat"
+    assert manifest.min_alert_level == "warning"
+
+
+def test_parse_install_manifest_non_mapping_install_section_uses_defaults() -> None:
+    """Non-dict install section triggers defaults."""
+    manifest = stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
+        raw={"install": "not-a-dict"},
+        default_style_name="concordat",
+    )
+
+    assert manifest.style_name == "concordat"
+    assert manifest.vocab_name == "concordat"
+    assert manifest.min_alert_level == "warning"
+
+
+def test_perform_install_honours_manifest_settings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Installation uses manifest-derived style and alert level."""
+    project_root = tmp_path / "consumer"
+    project_root.mkdir()
+
+    _, ini_path, makefile_path = stilyagi_install._resolve_install_paths(  # type: ignore[attr-defined]
+        cwd=project_root,
+        project_root=Path(),
+        vale_ini=Path(".vale.ini"),
+        makefile=Path("Makefile"),
+    )
+
+    manifest = stilyagi_install.InstallManifest(
+        style_name="custom-style",
+        vocab_name="custom-vocab",
+        min_alert_level="error",
+    )
+
+    monkeypatch.setattr(
+        stilyagi_install,
+        "_load_install_manifest",
+        lambda **_kwargs: manifest,
+        raising=True,
+    )
+    monkeypatch.setattr(
+        stilyagi_install,
+        "_resolve_release",
+        lambda **_kwargs: (
+            "2.0.0",
+            "v2.0.0",
+            "https://example.test/custom-style-2.0.0.zip",
+        ),
+        raising=True,
+    )
+
+    config = stilyagi_install.InstallConfig(
+        owner="example",
+        repo_name="custom-style",
+        style_name="default-style",
+        ini_path=ini_path,
+        makefile_path=makefile_path,
+    )
+
+    message = stilyagi_install._perform_install(config=config)  # type: ignore[attr-defined]
+
+    body = ini_path.read_text(encoding="utf-8")
+    assert "MinAlertLevel = error" in body, "Manifest should set MinAlertLevel"
+    assert "Vocab = custom-vocab" in body, "Manifest should override vocab"
+    assert "BasedOnStyles = custom-style" in body, (
+        "Style name should come from manifest"
+    )
+    assert "custom-style 2.0.0" in message, (
+        "Message should reflect manifest style/version"
+    )
+
+
+def test_load_install_manifest_skips_download_when_env_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Env override bypasses download and returns defaults."""
+    download_called = False
+
+    def _download_fail(*_: object, **__: object) -> None:
+        nonlocal download_called
+        download_called = True
+        pytest.fail("download should be skipped when env is set")
+
+    monkeypatch.setenv("STILYAGI_SKIP_MANIFEST_DOWNLOAD", "1")
+    monkeypatch.setattr(stilyagi_install, "_download_packages_archive", _download_fail)
+
+    manifest = stilyagi_install._load_install_manifest(  # type: ignore[attr-defined]
+        packages_url="https://example.test/archive.zip",
+        default_style_name="concordat",
+    )
+
+    assert download_called is False
+    assert manifest.style_name == "concordat"
+    assert manifest.vocab_name == "concordat"
+    assert manifest.min_alert_level == "warning"
+
+
+def test_load_install_manifest_uses_manifest_when_present(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Manifest embedded in archive is parsed and applied."""
+    buffer = io.BytesIO()
+    with ZipFile(buffer, "w") as archive:
+        archive.writestr(
+            "concordat-0.0.1/stilyagi.toml",
+            """[install]
+style_name = "manifest-style"
+vocab = "manifest-vocab"
+min_alert_level = "error"
+""",
+        )
+
+    monkeypatch.delenv("STILYAGI_SKIP_MANIFEST_DOWNLOAD", raising=False)
+    monkeypatch.setattr(
+        stilyagi_install,
+        "_download_packages_archive",
+        lambda *_args, **_kwargs: buffer.getvalue(),
+    )
+
+    manifest = stilyagi_install._load_install_manifest(  # type: ignore[attr-defined]
+        packages_url="https://example.test/archive.zip",
+        default_style_name="concordat",
+    )
+
+    assert manifest.style_name == "manifest-style"
+    assert manifest.vocab_name == "manifest-vocab"
+    assert manifest.min_alert_level == "error"
+
+
+def test_load_install_manifest_defaults_when_no_manifest(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Defaults are used when archive lacks stilyagi.toml."""
+    buffer = io.BytesIO()
+    with ZipFile(buffer, "w") as archive:
+        archive.writestr("concordat-0.0.1/.vale.ini", "StylesPath = styles\n")
+
+    download_called = False
+    extract_called = False
+
+    def _download(*_args: object, **_kwargs: object) -> bytes:
+        nonlocal download_called
+        download_called = True
+        return buffer.getvalue()
+
+    def _extract(_bytes: bytes) -> bytes | None:
+        nonlocal extract_called
+        extract_called = True
+        return None
+
+    monkeypatch.delenv("STILYAGI_SKIP_MANIFEST_DOWNLOAD", raising=False)
+    monkeypatch.setattr(stilyagi_install, "_download_packages_archive", _download)
+    monkeypatch.setattr(stilyagi_install, "_extract_stilyagi_toml", _extract)
+
+    manifest = stilyagi_install._load_install_manifest(  # type: ignore[attr-defined]
+        packages_url="https://example.test/archive.zip",
+        default_style_name="concordat",
+    )
+
+    assert download_called is True
+    assert extract_called is True
+    assert manifest.style_name == "concordat"
+    assert manifest.vocab_name == "concordat"
+    assert manifest.min_alert_level == "warning"
+
+
+def test_load_install_manifest_falls_back_on_download_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Download errors return the default manifest."""
+
+    def _download_fail(*_args: object, **_kwargs: object) -> bytes:
+        raise RuntimeError
+
+    monkeypatch.delenv("STILYAGI_SKIP_MANIFEST_DOWNLOAD", raising=False)
+    monkeypatch.setattr(stilyagi_install, "_download_packages_archive", _download_fail)
+
+    manifest = stilyagi_install._load_install_manifest(  # type: ignore[attr-defined]
+        packages_url="https://example.test/archive.zip",
+        default_style_name="concordat",
+    )
+
+    assert manifest.style_name == "concordat"
+    assert manifest.vocab_name == "concordat"
+    assert manifest.min_alert_level == "warning"
