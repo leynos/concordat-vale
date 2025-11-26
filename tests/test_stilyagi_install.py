@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses as dc
 import io
 import typing as typ
 from pathlib import Path
@@ -10,6 +11,15 @@ from zipfile import ZipFile
 import pytest
 
 from concordat_vale import stilyagi, stilyagi_install
+
+
+@dc.dataclass
+class _ExpectedManifest:
+    """Expected values for manifest parsing assertions."""
+
+    style: str
+    vocab: str
+    min_alert: str
 
 
 def test_update_vale_ini_merges_existing_values(tmp_path: Path) -> None:
@@ -205,9 +215,7 @@ def test_parse_install_manifest_defaults() -> None:
     (
         "test_id",
         "raw_input",
-        "expected_style",
-        "expected_vocab",
-        "expected_min_alert",
+        "expected",
     ),
     [
         (
@@ -219,9 +227,9 @@ def test_parse_install_manifest_defaults() -> None:
                     "min_alert_level": "error",
                 }
             },
-            "custom-style",
-            "custom-vocab",
-            "error",
+            _ExpectedManifest(
+                style="custom-style", vocab="custom-vocab", min_alert="error"
+            ),
         ),
         (
             "partial_missing_vocab",
@@ -231,9 +239,9 @@ def test_parse_install_manifest_defaults() -> None:
                     "min_alert_level": "error",
                 }
             },
-            "custom-style",
-            "custom-style",
-            "error",
+            _ExpectedManifest(
+                style="custom-style", vocab="custom-style", min_alert="error"
+            ),
         ),
         (
             "partial_missing_min_alert_level",
@@ -243,9 +251,9 @@ def test_parse_install_manifest_defaults() -> None:
                     "vocab": "custom-vocab",
                 }
             },
-            "custom-style",
-            "custom-vocab",
-            "warning",
+            _ExpectedManifest(
+                style="custom-style", vocab="custom-vocab", min_alert="warning"
+            ),
         ),
         (
             "whitespace_only_fields",
@@ -256,18 +264,16 @@ def test_parse_install_manifest_defaults() -> None:
                     "min_alert_level": "  ",
                 }
             },
-            "concordat",
-            "concordat",
-            "warning",
+            _ExpectedManifest(
+                style="concordat", vocab="concordat", min_alert="warning"
+            ),
         ),
     ],
 )
-def test_parse_install_manifest_overrides(  # noqa: PLR0913 - explicit params aid assertions
+def test_parse_install_manifest_overrides(
     test_id: str,
     raw_input: dict[str, object],
-    expected_style: str,
-    expected_vocab: str,
-    expected_min_alert: str,
+    expected: _ExpectedManifest,
 ) -> None:
     """Manifest fields are normalised according to provided overrides."""
     manifest = stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
@@ -275,9 +281,9 @@ def test_parse_install_manifest_overrides(  # noqa: PLR0913 - explicit params ai
         default_style_name="concordat",
     )
 
-    assert manifest.style_name == expected_style
-    assert manifest.vocab_name == expected_vocab
-    assert manifest.min_alert_level == expected_min_alert
+    assert manifest.style_name == expected.style
+    assert manifest.vocab_name == expected.vocab
+    assert manifest.min_alert_level == expected.min_alert
 
 
 def test_parse_install_manifest_non_mapping_raw_uses_defaults() -> None:
