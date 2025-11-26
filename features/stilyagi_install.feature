@@ -15,6 +15,7 @@ Feature: Install the Concordat Vale style into another repository
     Given an external repository without Vale wiring
     When I run stilyagi install with a packaged configuration
     Then the external repository reflects the stilyagi configuration
+    And the Makefile exposes manifest-defined post-sync steps
 
   Scenario: Release lookup failure surfaces an error
     Given an external repository without Vale wiring

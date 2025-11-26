@@ -151,6 +151,7 @@ class InstallManifest:
     style_name: str
     vocab_name: str
     min_alert_level: str
+    post_sync_steps: tuple[str, ...] = dc.field(default_factory=tuple)
 
 
 def _parse_install_manifest(
@@ -169,10 +170,21 @@ def _parse_install_manifest(
     vocab_name = _pick(install_section.get("vocab"), style_name)
     min_alert_level = _pick(install_section.get("min_alert_level"), "warning")
 
+    raw_steps = install_section.get("post_sync_steps")
+    steps: list[str] = []
+    if isinstance(raw_steps, list):
+        for step in raw_steps:
+            if not isinstance(step, str):
+                continue
+            cleaned = step.strip()
+            if cleaned:
+                steps.append(cleaned)
+
     return InstallManifest(
         style_name=style_name,
         vocab_name=vocab_name,
         min_alert_level=min_alert_level,
+        post_sync_steps=tuple(steps),
     )
 
 
@@ -416,21 +428,30 @@ def _append_with_spacing(lines: list[str], recipe: list[str]) -> list[str]:
     return [*lines, "", *recipe] if lines and lines[-1].strip() else lines + recipe
 
 
-def _replace_vale_target(lines: list[str]) -> list[str]:
-    """Swap any existing vale target with the canonical recipe."""
+def _build_vale_recipe(manifest: InstallManifest) -> list[str]:
+    """Construct the vale target recipe from the install manifest."""
     recipe = [
-        "vale: $(VALE) $(ACRONYM_SCRIPT) ## Check prose",
+        "vale: $(VALE) ## Check prose",
         "\t$(VALE) sync",
-        "\t$(VALE) --no-global .",
     ]
+
+    recipe.extend(f"\t{step}" for step in manifest.post_sync_steps)
+
+    recipe.append("\t$(VALE) --no-global .")
+    return recipe
+
+
+def _replace_vale_target(lines: list[str], *, manifest: InstallManifest) -> list[str]:
+    """Swap any existing vale target with the manifest-driven recipe."""
+    recipe = _build_vale_recipe(manifest)
     start_idx, end_idx = _find_target_bounds(lines, "vale:")
     if start_idx is None:
         return _append_with_spacing(lines, recipe)
     return lines[:start_idx] + recipe + lines[end_idx:]
 
 
-def _update_makefile(makefile_path: Path) -> None:
-    """Ensure the Makefile exposes a vale target that syncs Concordat."""
+def _update_makefile(makefile_path: Path, *, manifest: InstallManifest) -> None:
+    """Expose a vale target that syncs Concordat and runs manifest steps."""
     if makefile_path.exists():
         lines = makefile_path.read_text(encoding="utf-8").splitlines()
     else:
@@ -438,7 +459,7 @@ def _update_makefile(makefile_path: Path) -> None:
 
     lines = _ensure_variable(lines, "VALE", "VALE ?= vale")
     lines = _ensure_phony(lines, "vale")
-    lines = _replace_vale_target(lines)
+    lines = _replace_vale_target(lines, manifest=manifest)
 
     makefile_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
@@ -505,7 +526,7 @@ def _perform_install(
         packages_url=packages_url,
         manifest=manifest,
     )
-    _update_makefile(config.makefile_path)
+    _update_makefile(config.makefile_path, manifest=manifest)
 
     message = (
         f"Installed {manifest.style_name} {version_str} from "

@@ -7,8 +7,9 @@
 - `stilyagi zip` should be invoked from the repository root to create a
   distributable ZIP that contains `.vale.ini` plus the full `styles/` tree.
 - When present, `stilyagi.toml` at the repository root is copied into the
-  archive. It documents the install-time defaults (style name, vocabulary, and
-  alert level) that consumer repositories should pick up automatically.
+  archive. It documents the install-time defaults (style name, vocabulary,
+  alert level, and any `post_sync_steps`) that consumer repositories should
+  pick up automatically.
 
 ### Default workflow
 
@@ -26,18 +27,19 @@ cover Markdown, AsciiDoc, and text files.
 `stilyagi install` updates a consumer repository in-place so that Vale
 downloads and activates the latest Concordat release. It writes the required
 entries to `.vale.ini` and ensures the Makefile contains a `vale` target that
-performs a `vale sync` followed by a lint run.
+performs a `vale sync`, runs any manifest-defined setup steps, and then runs a
+lint pass.
 
 The command downloads the packaged archive to read `stilyagi.toml`, which
-defines the style name, vocabulary, and `MinAlertLevel` to write into the
-consumer `.vale.ini`. If the manifest is missing or cannot be fetched, the
-defaults remain `style_name = concordat`, `vocab = concordat`, and
-`min_alert_level = warning`.
+defines the style name, vocabulary, `MinAlertLevel`, and any `post_sync_steps`
+to write into the consumer Makefile. If the manifest is missing or cannot be
+fetched, the defaults remain `style_name = concordat`, `vocab = concordat`,
+`min_alert_level = warning`, and `post_sync_steps = []`.
 
 - `stilyagi install <owner>/<repo>` fetches the latest GitHub release and uses
   the matching download URL in `.vale.ini`'s `Packages` entry. For Concordat
   this becomes
-  `https://github.com/leynos/concordat-vale/releases/download/v<version>/concordat-<version>.zip`.
+  `https://github.com/leynos/concordat-vale/releases/download/ v<version>/concordat-<version>.zip`.
 - `--project-root` points at the consumer repository (defaults to `.`).
 - `--vale-ini` and `--makefile` override the paths that should be rewritten.
 - `--release-version` and `--tag` bypass GitHub lookups when the caller
@@ -85,10 +87,15 @@ entries):
 VALE ?= vale
 .PHONY: vale
 
-vale: $(VALE) $(ACRONYM_SCRIPT) ## Check prose
+vale: $(VALE) ## Check prose
 	$(VALE) sync
+	uv run stilyagi update-tengo-map --source .config/common-acronyms \
+	  --dest .vale/styles/config/scripts/AcronymsFirstUse.tengo
 	$(VALE) --no-global .
 ```
+
+When `post_sync_steps` is empty, the target falls back to running only
+`vale sync` followed by the lint command.
 
 ### Customisation
 

@@ -38,10 +38,10 @@ def _require_container_runtime() -> None:
     cli = shutil.which("docker") or shutil.which("podman")
     if cli is None:
         pytest.skip("Docker/Podman CLI is unavailable; cannot run act.")
-    probe = subprocess.run(  # noqa: S603 - runs trusted docker/podman CLI for a health check
+    assert cli is not None
+    probe: subprocess.CompletedProcess[str] = subprocess.run(  # noqa: S603 - runs trusted docker/podman CLI for a health check
         [cli, "info"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
+        capture_output=True,
         text=True,
         check=False,
     )

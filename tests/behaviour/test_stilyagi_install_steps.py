@@ -200,6 +200,7 @@ def run_install_with_manifest(
 style_name = "concordat"
 vocab = "manifest-vocab"
 min_alert_level = "error"
+post_sync_steps = ["echo manifest hook"]
 """
 
     archive_path = _build_manifest_archive(
@@ -248,6 +249,7 @@ min_alert_level = "error"
     scenario_state["expected_packages_url"] = packages_url
     scenario_state["expected_vocab"] = "manifest-vocab"
     scenario_state["expected_min_alert_level"] = "error"
+    scenario_state["expected_post_sync_steps"] = ["echo manifest hook"]
 
 
 @then("the external repository has a configured .vale.ini")
@@ -284,11 +286,29 @@ def verify_makefile(external_repo: Path) -> None:
     assert ".PHONY: test vale" in makefile or ".PHONY: vale test" in makefile, (
         ".PHONY line should include vale"
     )
-    assert "vale: $(VALE) $(ACRONYM_SCRIPT) ## Check prose" in makefile, (
-        "vale target should be present"
-    )
+    assert "vale: $(VALE) ## Check prose" in makefile, "vale target should be present"
     assert "\t$(VALE) sync" in makefile, "vale target should sync first"
     assert "\t$(VALE) --no-global ." in makefile, "vale target should lint workspace"
+
+
+@then("the Makefile exposes manifest-defined post-sync steps")
+def verify_post_sync_steps(
+    external_repo: Path, scenario_state: dict[str, object]
+) -> None:
+    """Ensure manifest-defined shell snippets are included in the vale target."""
+    raw_steps = scenario_state.get("expected_post_sync_steps")
+    if not isinstance(raw_steps, (list, tuple)):
+        return
+
+    expected_steps = [step for step in raw_steps if isinstance(step, str)]
+    if not expected_steps:
+        return
+
+    makefile = (external_repo / "Makefile").read_text(encoding="utf-8")
+    for step in expected_steps:
+        assert f"\t{step}" in makefile, (
+            "Manifest steps should be embedded in the target"
+        )
 
 
 @then("the install command fails with a release error")

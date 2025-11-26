@@ -20,9 +20,9 @@
   fetching the latest GitHub release (unless `--release-version`/`--tag` is
   supplied), writing the required `Packages`, `MinAlertLevel`, `Vocab`, and
   section entries to `.vale.ini`, and ensuring a `vale` Makefile target that
-  syncs and lints. The style name is derived from the repository name with a
-  permissive `-vale` suffix strip so it remains usable when the archive is
-  named `concordat-<version>.zip`.
+  syncs, runs any manifest-defined post-sync steps, then lints. The style name
+  is derived from the repository name with a permissive `-vale` suffix strip so
+  it remains usable when the archive is named `concordat-<version>.zip`.
 - `update-tengo-map` provides a generic way to merge entries into a named Tengo
   map (defaulting to `allow`). It trims comments/blank lines in the source
   file, supports boolean, string, and numeric value parsing via `--type`, and
@@ -91,6 +91,9 @@
     names when needed.
   - `min_alert_level` (default: `warning`) controls the root `MinAlertLevel`
     written into the consumer `.vale.ini`.
+  - `post_sync_steps` (default: `[]`) injects additional shell commands into
+    the generated `vale` Makefile target immediately after `vale sync` and
+    before linting.
 - Setting the environment variable `STILYAGI_SKIP_MANIFEST_DOWNLOAD=1` skips
   manifest retrieval and falls back to the built-in defaults. This keeps tests
   and offline workflows deterministic while retaining manifest support for real
