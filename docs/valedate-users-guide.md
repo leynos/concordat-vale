@@ -71,5 +71,5 @@ with Valedate(ini, styles=styles, min_alert_level="error") as env:
 ## Cleaning up
 
 The harness acts as a context manager and cleans up its temporary directory on
-exit. If constructed outside a `with` block, call `cleanup()` when finished to
-remove the sandbox.
+exit. If constructed outside a `with` block, call `cleanup()` to remove the
+temporary sandbox when finished.
