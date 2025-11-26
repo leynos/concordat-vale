@@ -153,12 +153,13 @@ def _parse_install_manifest(
     *, raw: dict[str, typ.Any] | None, default_style_name: str
 ) -> InstallManifest:
     """Return manifest values with sensible defaults and whitespace trimmed."""
-    install_section = raw.get("install", {}) if isinstance(raw, dict) else {}
+    install_section_raw = raw.get("install", {}) if isinstance(raw, dict) else {}
+    install_section = (
+        install_section_raw if isinstance(install_section_raw, dict) else {}
+    )
 
     def _pick(value: object, fallback: str) -> str:
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-        return fallback
+        return value.strip() if isinstance(value, str) and value.strip() else fallback
 
     style_name = _pick(install_section.get("style_name"), default_style_name)
     vocab_name = _pick(install_section.get("vocab"), style_name)
@@ -204,20 +205,20 @@ def _load_install_manifest(
     *, packages_url: str, default_style_name: str
 ) -> InstallManifest:
     """Load the install manifest from the packaged archive if available."""
-    if os.environ.get("STILYAGI_SKIP_MANIFEST_DOWNLOAD"):
-        return _parse_install_manifest(raw=None, default_style_name=default_style_name)
+    raw_manifest: dict[str, typ.Any] | None = None
 
-    try:
-        archive_bytes = _download_packages_archive(packages_url)
-        manifest_bytes = _extract_stilyagi_toml(archive_bytes)
-        if manifest_bytes is None:
-            return _parse_install_manifest(
-                raw=None, default_style_name=default_style_name
-            )
-        raw = tomllib.loads(manifest_bytes.decode("utf-8"))
-        return _parse_install_manifest(raw=raw, default_style_name=default_style_name)
-    except Exception:  # noqa: BLE001 - fallback is intentional for robustness
-        return _parse_install_manifest(raw=None, default_style_name=default_style_name)
+    if not os.environ.get("STILYAGI_SKIP_MANIFEST_DOWNLOAD"):
+        try:
+            archive_bytes = _download_packages_archive(packages_url)
+            manifest_bytes = _extract_stilyagi_toml(archive_bytes)
+            if manifest_bytes is not None:
+                raw_manifest = tomllib.loads(manifest_bytes.decode("utf-8"))
+        except Exception:  # noqa: BLE001 - fallback is intentional for robustness
+            raw_manifest = None
+
+    return _parse_install_manifest(
+        raw=raw_manifest, default_style_name=default_style_name
+    )
 
 
 def _render_root_options(
