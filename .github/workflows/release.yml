@@ -117,7 +117,8 @@ jobs:
         run: |
           set -euo pipefail
           archive_path="$(
-            uv run stilyagi zip \
+            uvx --from https://github.com/leynos/stilyagi.git \
+              stilyagi zip \
               --archive-version "${{ steps.meta.outputs.version }}" \
               --force
           )"

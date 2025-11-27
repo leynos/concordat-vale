@@ -2,10 +2,9 @@
 
 ## Packaging the Vale style with `stilyagi`
 
-- `uv sync --group dev` (or `make build`) should be run once so the `stilyagi`
-  entry point is available locally.
-- `stilyagi zip` should be invoked from the repository root to create a
-  distributable ZIP that contains `.vale.ini` plus the full `styles/` tree.
+- Run `uvx --from https://github.com/leynos/stilyagi.git stilyagi zip` from the
+  repository root to create a distributable ZIP that contains `.vale.ini` plus
+  the full `styles/` tree.
 - When present, `stilyagi.toml` at the repository root is copied into the
   archive. It documents the install-time defaults (style name, vocabulary,
   alert level, and any `post_sync_steps`) that consumer repositories should
@@ -14,7 +13,7 @@
 ### Default workflow
 
 1. `make build` (installs dependencies when needed).
-2. `uv run stilyagi zip`
+2. `uvx --from https://github.com/leynos/stilyagi.git stilyagi zip`
 3. Retrieve the archive from `dist/concordat-<version>.zip` and attach it to
    the release currently being prepared.
 
@@ -37,7 +36,8 @@ fetched, the defaults remain `style_name = concordat`, `vocab = concordat`,
 `min_alert_level = warning`, and `post_sync_steps = []`. `post_sync_steps` must
 be an array of tables; each entry must declare `action = "update-tengo-map"`
 plus `source`, `dest`, and optional `type` (`true`, `=`, `=b`, or `=n`). The
-installer renders these into constrained `uv run stilyagi update-tengo-map`
+installer renders these into constrained
+`uvx --from https://github.com/leynos/stilyagi.git stilyagi update-tengo-map`
 commands instead of injecting arbitrary shell.
 
 - `stilyagi install <owner>/<repo>` fetches the latest GitHub release and uses
@@ -54,7 +54,7 @@ Example installation flow:
 
 ```bash
 cd ~/Projects/limela
-uv run --with https://github.com/leynos/concordat-vale.git \
+uvx --from https://github.com/leynos/stilyagi.git \
   stilyagi install leynos/concordat-vale
 ```
 
@@ -91,11 +91,12 @@ entries):
 VALE ?= vale
 .PHONY: vale
 
-vale: $(VALE) ## Check prose
-	$(VALE) sync
-	uv run stilyagi update-tengo-map --source .config/common-acronyms \
-	  --dest .vale/styles/config/scripts/AcronymsFirstUse.tengo
-	$(VALE) --no-global .
+	vale: $(VALE) ## Check prose
+		$(VALE) sync
+		uvx --from https://github.com/leynos/stilyagi.git stilyagi \
+		  update-tengo-map --source .config/common-acronyms \
+		  --dest .vale/styles/config/scripts/AcronymsFirstUse.tengo
+		$(VALE) --no-global .
 ```
 
 When `post_sync_steps` is empty, the target falls back to running only
@@ -103,9 +104,14 @@ When `post_sync_steps` is empty, the target falls back to running only
 
 ### Customisation
 
-- `--archive-version` can be used to override the archive suffix (for example,
-  `uv run stilyagi zip --archive-version 2025.11.07`). When omitted, the value
-  from `pyproject.toml` is used.
+- `--archive-version` can be used to override the archive suffix (for example):
+
+  ```bash
+  uvx --from https://github.com/leynos/stilyagi.git stilyagi zip \
+    --archive-version 2025.11.07
+  ```
+
+  When omitted, the value from `pyproject.toml` is used.
 - `--style` (repeatable) limits the archive to specific style directories when
   more styles are added later. Without this flag, every non-config style in
   `styles/` is included.
@@ -123,7 +129,8 @@ When `post_sync_steps` is empty, the target falls back to running only
 
 ### Verifying the artefact locally
 
-1. Regenerate the archive via `uv run stilyagi zip --force`.
+1. Regenerate the archive via
+   `uvx --from https://github.com/leynos/stilyagi.git stilyagi zip --force`.
 2. Unzip the resulting file and inspect `.vale.ini` to confirm it references the
    expected style list and vocabulary.
 3. Validate the package inside a consumer repository by temporarily
@@ -149,8 +156,10 @@ publishes the resulting ZIP straight to the matching release.
    is omitted, the workflow strips the leading `v`/`V` from the tag and uses
    what remains.
 3. Packaging: dependencies are installed via `uv sync --group dev --frozen`,
-   then `uv run stilyagi zip --force` emits `dist/concordat-<version>.zip` and
-   records the artefact path for later steps.
+   then
+   `uvx --from https://github.com/leynos/stilyagi.git stilyagi zip --force`
+   emits `dist/concordat-<version>.zip` and records the artefact path for later
+   steps.
 4. Upload: `gh release upload` attaches the freshly generated archive to the
    release that supplied the tag, replacing any older asset with the same name.
 
@@ -219,8 +228,13 @@ This repository ships a `.vale.ini` that points `StylesPath` at `.vale/styles`
 and references the locally built archive `dist/concordat-dev.zip`. Running
 `make vale` orchestrates the following steps:
 
-1. `make vale-archive` rebuilds the development archive via
-   `uv run stilyagi zip --archive-version dev --force`.
+1. `make vale-archive` rebuilds the development archive via:
+
+   ```bash
+   uvx --from https://github.com/leynos/stilyagi.git stilyagi zip \
+     --archive-version dev --force
+   ```
+
 2. `make vale-sync` invokes `vale sync --config .vale.ini` to unpack the
    archive into `.vale/styles`.
 3. `scripts/update_acronym_allowlist.py` reads `.config/common-acronyms` and
@@ -272,7 +286,7 @@ without leaving merge conflicts in the generated Tengo source.
 - Example: to inject local acronyms without the helper script, run:
 
   ```bash
-  uv run stilyagi update-tengo-map \
+  uvx --from https://github.com/leynos/stilyagi.git stilyagi update-tengo-map \
     --source .config/common-acronyms \
     --dest .vale/styles/config/scripts/AcronymsFirstUse.tengo
   ```

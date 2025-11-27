@@ -85,7 +85,8 @@ nixie: $(NIXIE) ## Validate Mermaid diagrams
 	$(NIXIE) --no-sandbox
 
 vale-archive: build ## Build the dev Concordat archive for local linting
-	$(UV_ENV) uv run stilyagi zip --archive-version dev --force
+	$(UV_ENV) uvx --from https://github.com/leynos/stilyagi.git \
+	  stilyagi zip --archive-version dev --force
 
 vale-sync: vale-archive ## Sync Concordat into .vale/styles
 	$(VALE) sync --config $(VALE_CONFIG)
@@ -96,9 +97,6 @@ vale: vale-sync ## Lint docs with Vale after syncing and patching acronyms
 
 test: build uv $(VENV_TOOLS) ## Run tests
 	$(UV_ENV) uv run pytest -v -n auto
-ifeq ($(ACT_WORKFLOW_TESTS),1)
-	$(UV_ENV) uv run pytest tests/workflows/test_release_workflow.py -vv
-endif
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
