@@ -35,10 +35,13 @@ defines the style name, vocabulary, `MinAlertLevel`, and any `post_sync_steps`
 to write into the consumer Makefile. If the manifest is missing or cannot be
 fetched, the defaults remain `style_name = concordat`, `vocab = concordat`,
 `min_alert_level = warning`, and `post_sync_steps = []`. `post_sync_steps` is
-an array of tables; each entry must declare `action = "update-tengo-map"` plus
-`source`, `dest`, and optional `type` (`true`, `=`, `=b`, or `=n`). The
-installer renders these into constrained `uv run stilyagi update-tengo-map`
-commands instead of injecting arbitrary shell.
+normally an array of tables; each entry must declare
+`action = "update-tengo-map"` plus `source`, `dest`, and optional `type`
+(`true`, `=`, `=b`, or `=n`). The installer renders these into constrained
+`uv run stilyagi update-tengo-map` commands instead of injecting arbitrary
+shell. When `post_sync_steps` is provided as a single string, that string is
+inserted into the Makefile verbatim; only use this legacy form when the
+manifest is fully trusted.
 
 - `stilyagi install <owner>/<repo>` fetches the latest GitHub release and uses
   the matching download URL in `.vale.ini`'s `Packages` entry. For Concordat

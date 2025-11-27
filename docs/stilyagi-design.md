@@ -91,12 +91,16 @@
     names when needed.
   - `min_alert_level` (default: `warning`) controls the root `MinAlertLevel`
     written into the consumer `.vale.ini`.
-  - `post_sync_steps` (default: `[]`) is an array of tables that describe
+  - `post_sync_steps` (default: `[]`) is usually an array of tables describing
     trusted actions to run after `vale sync` and before linting. The only
-    supported action today is `update-tengo-map`, which renders a fixed
+    structured action today is `update-tengo-map`, which renders a fixed
     `uv run stilyagi update-tengo-map --source <src> --dest <dest> --type <t>`
     command. Unknown actions or invalid value types are rejected at parse
-    time.
+    time. When the manifest supplies `post_sync_steps` as a **single string**
+    instead of a table list, that string is injected verbatim into the
+    Makefile recipe; this path is kept for backward compatibility and should
+    only be used when the manifest is fully trusted to avoid arbitrary shell
+    execution.
 - Setting the environment variable `STILYAGI_SKIP_MANIFEST_DOWNLOAD=1` skips
   manifest retrieval and falls back to the built-in defaults. This keeps tests
   and offline workflows deterministic while retaining manifest support for real

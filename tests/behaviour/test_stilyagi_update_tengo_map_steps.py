@@ -126,6 +126,7 @@ def _run_update_tengo_map(
     *,
     repo_root: Path,
     scenario_state: ScenarioState,
+    source_argument: str | None = None,
     dest_argument: str,
     extra_args: list[str],
 ) -> subprocess.CompletedProcess[str]:
@@ -133,6 +134,11 @@ def _run_update_tengo_map(
     project_root = scenario_state["project_root"]
     source_path: Path = scenario_state["source_path"]
     project_root = scenario_state["project_root"]
+    source_arg = (
+        source_argument
+        if source_argument is not None
+        else str(source_path.relative_to(project_root))
+    )
     dest_arg = dest_argument
     if "::" in dest_argument:
         path_part, _, map_suffix = dest_argument.partition("::")
@@ -151,7 +157,7 @@ def _run_update_tengo_map(
         "update-tengo-map",
         "--project-root",
         str(project_root),
-        str(source_path.relative_to(project_root)),
+        source_arg,
         dest_arg,
         *extra_args,
     ]
@@ -181,7 +187,9 @@ def run_update_tengo_map_missing_tengo(
     return _run_update_tengo_map(
         repo_root=repo_root,
         scenario_state=scenario_state,
-        dest_argument=str(missing_tengo_path.relative_to(scenario_state["project_root"])),
+        dest_argument=str(
+            missing_tengo_path.relative_to(scenario_state["project_root"])
+        ),
         extra_args=[],
     )
 
@@ -195,6 +203,37 @@ def run_update_tengo_map_invalid_type(
         repo_root,
         scenario_state,
         ["--type", "foo"],
+    )
+
+
+@when("I run stilyagi update-tengo-map with an escaping source path")
+def run_update_tengo_map_with_escaping_source(
+    repo_root: Path, scenario_state: ScenarioState
+) -> subprocess.CompletedProcess[str]:
+    """Invoke the CLI with a source path that attempts directory traversal."""
+
+    return _run_update_tengo_map(
+        repo_root=repo_root,
+        scenario_state=scenario_state,
+        source_argument="../outside-source",
+        dest_argument=str(
+            scenario_state["tengo_path"].relative_to(scenario_state["project_root"])
+        ),
+        extra_args=[],
+    )
+
+
+@when("I run stilyagi update-tengo-map with an escaping Tengo path")
+def run_update_tengo_map_with_escaping_tengo(
+    repo_root: Path, scenario_state: ScenarioState
+) -> subprocess.CompletedProcess[str]:
+    """Invoke the CLI with a Tengo destination that attempts traversal."""
+
+    return _run_update_tengo_map(
+        repo_root=repo_root,
+        scenario_state=scenario_state,
+        dest_argument="../outside.tengo",
+        extra_args=[],
     )
 
 
@@ -257,6 +296,16 @@ def command_fails_invalid_type(scenario_state: ScenarioState) -> None:
     assert result.returncode != 0, "Command should fail for invalid type argument"
     assert "Invalid --type value" in result.stderr, (
         "Error output should mention invalid type"
+    )
+
+
+@then("the command fails with a traversal error")
+def command_fails_traversal(scenario_state: ScenarioState) -> None:
+    """CLI should fail when paths attempt to escape the project root."""
+    result = scenario_state["result"]
+    assert result.returncode != 0, "Command should fail when traversal is detected"
+    assert "Attempt to escape base directory" in result.stderr, (
+        "Error output should mention traversal prevention"
     )
 
 

@@ -32,3 +32,15 @@ Feature: Update Tengo maps with stilyagi
     And a source list containing boolean entries
     When I run stilyagi update-tengo-map with an invalid value type
     Then the command fails with an invalid type error
+
+  Scenario: Fail when the source path escapes the project root
+    Given a staging Tengo script with allow and exceptions maps
+    And a source list containing boolean entries
+    When I run stilyagi update-tengo-map with an escaping source path
+    Then the command fails with a traversal error
+
+  Scenario: Fail when the Tengo script path escapes the project root
+    Given a staging Tengo script with allow and exceptions maps
+    And a source list containing boolean entries
+    When I run stilyagi update-tengo-map with an escaping Tengo path
+    Then the command fails with a traversal error
