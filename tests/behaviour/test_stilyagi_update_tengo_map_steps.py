@@ -131,7 +131,19 @@ def _run_update_tengo_map(
 ) -> subprocess.CompletedProcess[str]:
     """Execute the update-tengo-map CLI and capture output in scenario state."""
     project_root = scenario_state["project_root"]
-    source_path = scenario_state["source_path"]
+    source_path: Path = scenario_state["source_path"]
+    project_root = scenario_state["project_root"]
+    dest_arg = dest_argument
+    if "::" in dest_argument:
+        path_part, _, map_suffix = dest_argument.partition("::")
+        path_obj = Path(path_part)
+        if path_obj.is_absolute():
+            dest_arg = f"{path_obj.relative_to(project_root)}::{map_suffix}"
+    else:
+        path_obj = Path(dest_argument)
+        if path_obj.is_absolute():
+            dest_arg = str(path_obj.relative_to(project_root))
+
     command = [
         sys.executable,
         "-m",
@@ -139,8 +151,8 @@ def _run_update_tengo_map(
         "update-tengo-map",
         "--project-root",
         str(project_root),
-        str(source_path),
-        dest_argument,
+        str(source_path.relative_to(project_root)),
+        dest_arg,
         *extra_args,
     ]
     result = subprocess.run(  # noqa: S603  # TODO @assistant: false positive for S603; controlled arg list in tests; see https://github.com/leynos/concordat-vale/issues/999
@@ -169,7 +181,7 @@ def run_update_tengo_map_missing_tengo(
     return _run_update_tengo_map(
         repo_root=repo_root,
         scenario_state=scenario_state,
-        dest_argument=str(missing_tengo_path),
+        dest_argument=str(missing_tengo_path.relative_to(scenario_state["project_root"])),
         extra_args=[],
     )
 
@@ -223,7 +235,7 @@ def command_fails_missing_source(scenario_state: ScenarioState) -> None:
     """CLI should fail when the source file is absent."""
     result = scenario_state["result"]
     assert result.returncode != 0, "Command should fail when source is missing"
-    assert "Missing input file" in result.stderr, (
+    assert "File not found" in result.stderr, (
         "Error output should mention the missing source file"
     )
 
@@ -233,7 +245,7 @@ def command_fails_missing_tengo(scenario_state: ScenarioState) -> None:
     """CLI should fail when the Tengo script is absent."""
     result = scenario_state["result"]
     assert result.returncode != 0, "Command should fail when Tengo script is missing"
-    assert "Missing Tengo script" in result.stderr, (
+    assert "File not found" in result.stderr, (
         "Error output should mention the missing Tengo script"
     )
 

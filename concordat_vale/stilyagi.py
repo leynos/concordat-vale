@@ -13,6 +13,7 @@ repository by updating its ``.vale.ini`` and Makefile.
 
 from __future__ import annotations
 
+import os
 import typing as typ
 from pathlib import Path
 
@@ -72,6 +73,51 @@ def _split_dest(dest: str) -> tuple[Path, str]:
         raise ValueError(msg)
     map_name = map_suffix or DEFAULT_MAP_NAME
     return Path(path_part), map_name
+
+
+def _safe_resolve(
+    user_path: Path | str,
+    *,
+    base_dir: Path,
+    allowed_exts: tuple[str, ...] = (),
+) -> Path:
+    """Resolve *user_path* safely within *base_dir*.
+
+    Guards against traversal by rejecting absolute paths, collapsing any ``..``
+    segments, ensuring the resolved path stays under *base_dir*, and verifying
+    the path exists as a file. When *allowed_exts* is provided, the suffix must
+    match (case-insensitive).
+    """
+
+    path_str = str(user_path).strip()
+    if not path_str:
+        msg = "Missing file"
+        raise ValueError(msg)
+
+    candidate = Path(path_str)
+    if candidate.is_absolute():
+        msg = "Absolute paths are not allowed"
+        raise ValueError(msg)
+
+    target = (base_dir / candidate).resolve()
+
+    base_only = os.path.commonpath([str(base_dir)])
+    base_and_target = os.path.commonpath([str(base_dir), str(target)])
+    if base_only != base_and_target:
+        msg = "Attempt to escape base directory"
+        raise ValueError(msg)
+
+    if allowed_exts:
+        suffix = target.suffix.lower()
+        if suffix not in allowed_exts:
+            msg = "File type not allowed"
+            raise ValueError(msg)
+
+    if not target.exists() or not target.is_file():
+        msg = "File not found"
+        raise FileNotFoundError(msg)
+
+    return target
 
 
 def _coerce_value_type(raw: str) -> MapValueType:
@@ -175,11 +221,13 @@ def update_tengo_map_command(
 ) -> str:
     """Update a Tengo map with entries from a source list."""
     resolved_root = project_root.expanduser().resolve()
-    resolved_source = _resolve_project_path(resolved_root, source)
+    resolved_source = _safe_resolve(source, base_dir=resolved_root)
 
     try:
         dest_path, map_name = _split_dest(dest)
-        resolved_dest = _resolve_project_path(resolved_root, dest_path)
+        resolved_dest = _safe_resolve(
+            dest_path, base_dir=resolved_root, allowed_exts=(".tengo",)
+        )
         map_value_type = _coerce_value_type(value_type)
 
         entries_provided, entries = parse_source_entries(
