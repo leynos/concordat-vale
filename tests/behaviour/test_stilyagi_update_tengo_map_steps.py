@@ -126,17 +126,16 @@ def _run_update_tengo_map(
     *,
     repo_root: Path,
     scenario_state: ScenarioState,
-    source_argument: str | None = None,
     dest_argument: str,
-    extra_args: list[str],
+    extra_args: list[str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Execute the update-tengo-map CLI and capture output in scenario state."""
     project_root = scenario_state["project_root"]
     source_path: Path = scenario_state["source_path"]
-    project_root = scenario_state["project_root"]
+    source_override = scenario_state.get("source_override")
     source_arg = (
-        source_argument
-        if source_argument is not None
+        source_override
+        if source_override is not None
         else str(source_path.relative_to(project_root))
     )
     dest_arg = dest_argument
@@ -159,7 +158,7 @@ def _run_update_tengo_map(
         str(project_root),
         source_arg,
         dest_arg,
-        *extra_args,
+        *(extra_args or []),
     ]
     result = subprocess.run(  # noqa: S603  # TODO @assistant: false positive for S603; controlled arg list in tests; see https://github.com/leynos/concordat-vale/issues/999
         command,
@@ -211,11 +210,10 @@ def run_update_tengo_map_with_escaping_source(
     repo_root: Path, scenario_state: ScenarioState
 ) -> subprocess.CompletedProcess[str]:
     """Invoke the CLI with a source path that attempts directory traversal."""
-
+    scenario_state["source_override"] = "../outside-source"
     return _run_update_tengo_map(
         repo_root=repo_root,
         scenario_state=scenario_state,
-        source_argument="../outside-source",
         dest_argument=str(
             scenario_state["tengo_path"].relative_to(scenario_state["project_root"])
         ),
@@ -228,7 +226,6 @@ def run_update_tengo_map_with_escaping_tengo(
     repo_root: Path, scenario_state: ScenarioState
 ) -> subprocess.CompletedProcess[str]:
     """Invoke the CLI with a Tengo destination that attempts traversal."""
-
     return _run_update_tengo_map(
         repo_root=repo_root,
         scenario_state=scenario_state,

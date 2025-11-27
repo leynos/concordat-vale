@@ -176,10 +176,6 @@ def _parse_install_manifest(
     steps: list[str] = []
     if raw_steps is None:
         pass
-    elif isinstance(raw_steps, str):
-        cleaned = raw_steps.strip()
-        if cleaned:
-            steps.append(cleaned)
     elif isinstance(raw_steps, list):
         steps = _parse_post_sync_steps_list(raw_steps)
     else:

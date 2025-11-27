@@ -380,13 +380,12 @@ def test_parse_install_manifest_non_mapping_install_section_uses_defaults() -> N
 
 
 def test_parse_install_manifest_accepts_string_post_sync_step() -> None:
-    """String post_sync_steps is coerced into a single command."""
-    manifest = stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
-        raw={"install": {"post_sync_steps": " echo me "}},
-        default_style_name="concordat",
-    )
-
-    assert manifest.post_sync_steps == ("echo me",)
+    """String post_sync_steps are rejected as invalid."""
+    with pytest.raises(TypeError):
+        stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
+            raw={"install": {"post_sync_steps": " echo me "}},
+            default_style_name="concordat",
+        )
 
 
 def test_parse_install_manifest_rejects_non_list_post_sync_steps() -> None:

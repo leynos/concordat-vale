@@ -33,7 +33,6 @@ from .stilyagi_packaging import (
     DEFAULT_STYLES_PATH,
     PackagingPaths,
     StyleConfig,
-    _resolve_project_path,
     _resolve_version,
     package_styles,
 )
@@ -75,6 +74,45 @@ def _split_dest(dest: str) -> tuple[Path, str]:
     return Path(path_part), map_name
 
 
+def _validate_path_input(user_path: Path | str) -> Path:
+    """Validate user-supplied path is non-empty and relative."""
+    path_str = str(user_path).strip()
+    if not path_str:
+        msg = "Missing file"
+        raise ValueError(msg)
+
+    candidate = Path(path_str)
+    if candidate.is_absolute():
+        msg = "Absolute paths are not allowed"
+        raise ValueError(msg)
+    return candidate
+
+
+def _validate_within_base_dir(target: Path, base_dir: Path) -> None:
+    """Ensure resolved path remains inside base_dir."""
+    base_only = os.path.commonpath([str(base_dir)])
+    base_and_target = os.path.commonpath([str(base_dir), str(target)])
+    if base_only != base_and_target:
+        msg = "Attempt to escape base directory"
+        raise ValueError(msg)
+
+
+def _validate_extension(target: Path, allowed_exts: tuple[str, ...]) -> None:
+    """Check target suffix is allowed when a whitelist is provided."""
+    if allowed_exts:
+        suffix = target.suffix.lower()
+        if suffix not in allowed_exts:
+            msg = "File type not allowed"
+            raise ValueError(msg)
+
+
+def _validate_file_exists(target: Path) -> None:
+    """Ensure the target exists and is a regular file."""
+    if not target.exists() or not target.is_file():
+        msg = "File not found"
+        raise FileNotFoundError(msg)
+
+
 def _safe_resolve(
     user_path: Path | str,
     *,
@@ -88,35 +126,11 @@ def _safe_resolve(
     the path exists as a file. When *allowed_exts* is provided, the suffix must
     match (case-insensitive).
     """
-
-    path_str = str(user_path).strip()
-    if not path_str:
-        msg = "Missing file"
-        raise ValueError(msg)
-
-    candidate = Path(path_str)
-    if candidate.is_absolute():
-        msg = "Absolute paths are not allowed"
-        raise ValueError(msg)
-
+    candidate = _validate_path_input(user_path)
     target = (base_dir / candidate).resolve()
-
-    base_only = os.path.commonpath([str(base_dir)])
-    base_and_target = os.path.commonpath([str(base_dir), str(target)])
-    if base_only != base_and_target:
-        msg = "Attempt to escape base directory"
-        raise ValueError(msg)
-
-    if allowed_exts:
-        suffix = target.suffix.lower()
-        if suffix not in allowed_exts:
-            msg = "File type not allowed"
-            raise ValueError(msg)
-
-    if not target.exists() or not target.is_file():
-        msg = "File not found"
-        raise FileNotFoundError(msg)
-
+    _validate_within_base_dir(target, base_dir)
+    _validate_extension(target, allowed_exts)
+    _validate_file_exists(target)
     return target
 
 
