@@ -297,17 +297,24 @@ def verify_post_sync_steps(
 ) -> None:
     """Ensure manifest-defined shell snippets are included in the vale target."""
     raw_steps = scenario_state.get("expected_post_sync_steps")
-    if not isinstance(raw_steps, (list, tuple)):
-        return
+    assert raw_steps, "expected_post_sync_steps must be provided for this step"
+    assert isinstance(raw_steps, (list, tuple)), (
+        "expected_post_sync_steps should be a list or tuple"
+    )
 
-    expected_steps = [step for step in raw_steps if isinstance(step, str)]
-    if not expected_steps:
-        return
+    expected_steps = [step for step in raw_steps if isinstance(step, str) and step]
+    assert expected_steps, "expected_post_sync_steps must contain string steps"
 
-    makefile = (external_repo / "Makefile").read_text(encoding="utf-8")
+    lines = (external_repo / "Makefile").read_text(encoding="utf-8").splitlines()
+    sync_idx = lines.index("\t$(VALE) sync")
+    lint_idx = lines.index("\t$(VALE) --no-global .")
+
     for step in expected_steps:
-        assert f"\t{step}" in makefile, (
-            "Manifest steps should be embedded in the target"
+        line = f"\t{step}"
+        assert line in lines, "Manifest steps should be embedded in the target"
+        step_idx = lines.index(line)
+        assert sync_idx < step_idx < lint_idx, (
+            "Steps should run after sync and before lint"
         )
 
 

@@ -39,7 +39,7 @@ fetched, the defaults remain `style_name = concordat`, `vocab = concordat`,
 - `stilyagi install <owner>/<repo>` fetches the latest GitHub release and uses
   the matching download URL in `.vale.ini`'s `Packages` entry. For Concordat
   this becomes
-  `https://github.com/leynos/concordat-vale/releases/download/ v<version>/concordat-<version>.zip`.
+  `https://github.com/leynos/concordat-vale/releases/download/v<version>/concordat-<version>.zip`.
 - `--project-root` points at the consumer repository (defaults to `.`).
 - `--vale-ini` and `--makefile` override the paths that should be rewritten.
 - `--release-version` and `--tag` bypass GitHub lookups when the caller

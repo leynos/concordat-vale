@@ -172,13 +172,29 @@ def _parse_install_manifest(
 
     raw_steps = install_section.get("post_sync_steps")
     steps: list[str] = []
-    if isinstance(raw_steps, list):
+    if raw_steps is None:
+        pass
+    elif isinstance(raw_steps, str):
+        cleaned = raw_steps.strip()
+        if cleaned:
+            steps.append(cleaned)
+    elif isinstance(raw_steps, list):
         for step in raw_steps:
             if not isinstance(step, str):
-                continue
+                msg = (
+                    "install.post_sync_steps must be a list of strings; "
+                    f"got {type(step).__name__} element"
+                )
+                raise TypeError(msg)
             cleaned = step.strip()
             if cleaned:
                 steps.append(cleaned)
+    else:
+        msg = (
+            "install.post_sync_steps must be a string or list of strings; "
+            f"got {type(raw_steps).__name__}"
+        )
+        raise TypeError(msg)
 
     return InstallManifest(
         style_name=style_name,

@@ -314,7 +314,6 @@ def test_parse_install_manifest_defaults() -> None:
                         "",
                         "\t",
                         "echo second",
-                        7,
                     ]
                 }
             },
@@ -362,6 +361,44 @@ def test_parse_install_manifest_non_mapping_install_section_uses_defaults() -> N
     )
 
     _assert_default_manifest(manifest)
+
+
+def test_parse_install_manifest_accepts_string_post_sync_step() -> None:
+    """String post_sync_steps is coerced into a single command."""
+    manifest = stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
+        raw={"install": {"post_sync_steps": " echo me "}},
+        default_style_name="concordat",
+    )
+
+    assert manifest.post_sync_steps == ("echo me",)
+
+
+def test_parse_install_manifest_rejects_non_list_post_sync_steps() -> None:
+    """Non-list/str post_sync_steps raises a clear error."""
+    with pytest.raises(TypeError, match=r"string or list of strings"):
+        stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
+            raw={"install": {"post_sync_steps": 123}},
+            default_style_name="concordat",
+        )
+
+
+def test_parse_install_manifest_rejects_non_string_list_entries() -> None:
+    """Lists must contain only strings."""
+    with pytest.raises(TypeError, match=r"list of strings"):
+        stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
+            raw={"install": {"post_sync_steps": ["ok", 7]}},
+            default_style_name="concordat",
+        )
+
+
+def test_parse_install_manifest_allows_explicit_empty_list() -> None:
+    """Empty list normalises to an empty tuple."""
+    manifest = stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
+        raw={"install": {"post_sync_steps": []}},
+        default_style_name="concordat",
+    )
+
+    assert manifest.post_sync_steps == ()
 
 
 def test_perform_install_honours_manifest_settings(

@@ -458,10 +458,13 @@ def _try_parse_float(value: str) -> float | None:
 
 def _values_equal(existing: object, new_value: object) -> bool:
     """Check semantic equality between existing and new values."""
-    if isinstance(existing, (int, float)) and isinstance(new_value, (int, float)):
-        return float(existing) == float(new_value)
-
-    return existing == new_value
+    match (existing, new_value):
+        case (int() | float(), int() | float()):
+            existing_num = float(typ.cast(float | int, existing))
+            new_num = float(typ.cast(float | int, new_value))
+            return existing_num == new_num
+        case _:
+            return existing == new_value
 
 
 def _render_entry(key: str, value: object, indent: str, comment: str) -> str:
