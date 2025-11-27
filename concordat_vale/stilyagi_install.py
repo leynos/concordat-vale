@@ -179,16 +179,7 @@ def _parse_install_manifest(
         if cleaned:
             steps.append(cleaned)
     elif isinstance(raw_steps, list):
-        for step in raw_steps:
-            if not isinstance(step, str):
-                msg = (
-                    "install.post_sync_steps must be a list of strings; "
-                    f"got {type(step).__name__} element"
-                )
-                raise TypeError(msg)
-            cleaned = step.strip()
-            if cleaned:
-                steps.append(cleaned)
+        steps = _parse_post_sync_steps_list(raw_steps)
     else:
         msg = (
             "install.post_sync_steps must be a string or list of strings; "
@@ -257,6 +248,40 @@ def _load_install_manifest(
     return _parse_install_manifest(
         raw=raw_manifest, default_style_name=default_style_name
     )
+
+
+def _parse_post_sync_steps_list(raw_steps: list[object]) -> list[str]:
+    """Normalise a list of post-sync shell commands.
+
+    Parameters
+    ----------
+    raw_steps
+        Sequence of raw step entries from ``install.post_sync_steps``.
+
+    Returns
+    -------
+    list[str]
+        Cleaned, non-empty commands with surrounding whitespace stripped.
+
+    Raises
+    ------
+    TypeError
+        If any element is not a string.
+    """
+    steps: list[str] = []
+    for step in raw_steps:
+        if not isinstance(step, str):
+            msg = (
+                "install.post_sync_steps must be a list of strings; "
+                f"got {type(step).__name__} element"
+            )
+            raise TypeError(msg)
+
+        cleaned = step.strip()
+        if cleaned:
+            steps.append(cleaned)
+
+    return steps
 
 
 def _render_root_options(
