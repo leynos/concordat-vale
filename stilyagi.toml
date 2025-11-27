@@ -2,6 +2,9 @@
 style_name = "concordat"
 vocab = "concordat"
 min_alert_level = "warning"
-post_sync_steps = [
-  "if [ -f .config/common-acronyms ]; then uv run stilyagi update-tengo-map --source .config/common-acronyms --dest .vale/styles/config/scripts/AcronymsFirstUse.tengo; fi",
-]
+
+[[install.post_sync_steps]]
+action = "update-tengo-map"
+type = "true"
+source = ".config/common-acronyms"
+dest = ".vale/styles/config/scripts/AcronymsFirstUse.tengo"

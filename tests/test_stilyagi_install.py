@@ -180,19 +180,28 @@ def test_update_makefile_includes_post_sync_steps(tmp_path: Path) -> None:
         style_name="concordat",
         vocab_name="concordat",
         min_alert_level="warning",
-        post_sync_steps=("echo prepare acronyms", "uv run stilyagi do-thing"),
+        post_sync_steps=(
+            "uv run stilyagi update-tengo-map --source one --dest two --type true",
+            "uv run stilyagi update-tengo-map --source three --dest four --type =",
+        ),
     )
 
     stilyagi._update_makefile(makefile, manifest=manifest)  # type: ignore[attr-defined]
 
     contents = makefile.read_text(encoding="utf-8").splitlines()
-    assert "\techo prepare acronyms" in contents, "post sync steps should be added"
-    assert "\tuv run stilyagi do-thing" in contents, (
-        "multiple steps should be preserved"
-    )
+    assert (
+        "\tuv run stilyagi update-tengo-map --source one --dest two --type true"
+        in contents
+    ), "post sync steps should be added"
+    assert (
+        "\tuv run stilyagi update-tengo-map --source three --dest four --type ="
+        in contents
+    ), "multiple steps should be preserved"
 
     sync_idx = contents.index("\t$(VALE) sync")
-    first_step_idx = contents.index("\techo prepare acronyms")
+    first_step_idx = contents.index(
+        "\tuv run stilyagi update-tengo-map --source one --dest two --type true"
+    )
     lint_idx = contents.index("\t$(VALE) --no-global .")
     assert sync_idx < first_step_idx < lint_idx, (
         "steps should sit between sync and lint"
@@ -310,10 +319,12 @@ def test_parse_install_manifest_defaults() -> None:
             {
                 "install": {
                     "post_sync_steps": [
-                        "  echo first  ",
-                        "",
-                        "\t",
-                        "echo second",
+                        {
+                            "action": "update-tengo-map",
+                            "source": " a ",
+                            "dest": " b ",
+                            "type": "=n",
+                        }
                     ]
                 }
             },
@@ -321,7 +332,12 @@ def test_parse_install_manifest_defaults() -> None:
                 style="concordat",
                 vocab="concordat",
                 min_alert="warning",
-                post_sync_steps=("echo first", "echo second"),
+                post_sync_steps=(
+                    (
+                        "uv run stilyagi update-tengo-map --source ' a ' "
+                        "--dest ' b ' --type =n"
+                    ),
+                ),
             ),
         ),
     ],
@@ -374,8 +390,8 @@ def test_parse_install_manifest_accepts_string_post_sync_step() -> None:
 
 
 def test_parse_install_manifest_rejects_non_list_post_sync_steps() -> None:
-    """Non-list/str post_sync_steps raises a clear error."""
-    with pytest.raises(TypeError, match=r"string or list of strings"):
+    """Non-list post_sync_steps raises a clear error."""
+    with pytest.raises(TypeError, match=r"list of tables"):
         stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
             raw={"install": {"post_sync_steps": 123}},
             default_style_name="concordat",
@@ -383,10 +399,10 @@ def test_parse_install_manifest_rejects_non_list_post_sync_steps() -> None:
 
 
 def test_parse_install_manifest_rejects_non_string_list_entries() -> None:
-    """Lists must contain only strings."""
-    with pytest.raises(TypeError, match=r"list of strings"):
+    """Lists must contain only tables."""
+    with pytest.raises(TypeError, match=r"list of tables"):
         stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
-            raw={"install": {"post_sync_steps": ["ok", 7]}},
+            raw={"install": {"post_sync_steps": ["ok"]}},
             default_style_name="concordat",
         )
 
@@ -399,6 +415,41 @@ def test_parse_install_manifest_allows_explicit_empty_list() -> None:
     )
 
     assert manifest.post_sync_steps == ()
+
+
+def test_parse_install_manifest_rejects_unknown_action() -> None:
+    """Only update-tengo-map actions are supported."""
+    with pytest.raises(ValueError, match=r"update-tengo-map"):
+        stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
+            raw={
+                "install": {
+                    "post_sync_steps": [
+                        {"action": "something-else", "source": "a", "dest": "b"}
+                    ]
+                }
+            },
+            default_style_name="concordat",
+        )
+
+
+def test_parse_install_manifest_rejects_invalid_value_type() -> None:
+    """Value type must be among the allowed Tengo update options."""
+    with pytest.raises(ValueError, match=r"one of"):
+        stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
+            raw={
+                "install": {
+                    "post_sync_steps": [
+                        {
+                            "action": "update-tengo-map",
+                            "source": "a",
+                            "dest": "b",
+                            "type": "invalid",
+                        }
+                    ]
+                }
+            },
+            default_style_name="concordat",
+        )
 
 
 def test_perform_install_honours_manifest_settings(

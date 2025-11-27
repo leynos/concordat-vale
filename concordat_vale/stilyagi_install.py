@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import re
+import shlex
 import tomllib
 import typing as typ
 from urllib import error as urlerror
@@ -23,6 +24,7 @@ if typ.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 FOOTNOTE_REGEX = r"(?m)^\[\^\d+\]:[^\n]*(?:\n[ \t]+[^\n]*)*"
+VALID_TENGO_VALUE_TYPES: tuple[str, ...] = ("true", "=", "=b", "=n")
 
 
 def _strip_version_prefix(tag: str) -> str:
@@ -182,7 +184,7 @@ def _parse_install_manifest(
         steps = _parse_post_sync_steps_list(raw_steps)
     else:
         msg = (
-            "install.post_sync_steps must be a string or list of strings; "
+            "install.post_sync_steps must be a list of tables; "
             f"got {type(raw_steps).__name__}"
         )
         raise TypeError(msg)
@@ -251,37 +253,75 @@ def _load_install_manifest(
 
 
 def _parse_post_sync_steps_list(raw_steps: list[object]) -> list[str]:
-    """Normalise a list of post-sync shell commands.
+    """Normalise trusted post-sync actions into Makefile-safe commands.
 
     Parameters
     ----------
     raw_steps
-        Sequence of raw step entries from ``install.post_sync_steps``.
+        Sequence of tables from ``install.post_sync_steps``.
 
     Returns
     -------
     list[str]
-        Cleaned, non-empty commands with surrounding whitespace stripped.
+        Rendered commands for the supported actions.
 
     Raises
     ------
     TypeError
-        If any element is not a string.
+        If the list items or required fields are not strings.
+    ValueError
+        If an unsupported action or value type is supplied.
     """
-    steps: list[str] = []
+    commands: list[str] = []
     for step in raw_steps:
-        if not isinstance(step, str):
+        if not isinstance(step, dict):
             msg = (
-                "install.post_sync_steps must be a list of strings; "
+                "install.post_sync_steps must be a list of tables; "
                 f"got {type(step).__name__} element"
             )
             raise TypeError(msg)
 
-        cleaned = step.strip()
-        if cleaned:
-            steps.append(cleaned)
+        typed_step = typ.cast("dict[str, object]", step)
 
-    return steps
+        action = typed_step.get("action")
+        if action != "update-tengo-map":
+            msg = (
+                "install.post_sync_steps action must be 'update-tengo-map' "
+                f"(got {action!r})"
+            )
+            raise ValueError(msg)
+
+        source = typed_step.get("source")
+        dest = typed_step.get("dest")
+        value_type = typed_step.get("type", "true")
+
+        for key, value in {"source": source, "dest": dest, "type": value_type}.items():
+            if not isinstance(value, str):
+                msg = f"install.post_sync_steps.{key} must be a string"
+                raise TypeError(msg)
+
+        source_str = typ.cast("str", source)
+        dest_str = typ.cast("str", dest)
+        value_type_str = typ.cast("str", value_type)
+
+        if value_type_str not in VALID_TENGO_VALUE_TYPES:
+            msg = (
+                "install.post_sync_steps.type must be one of "
+                f"{', '.join(VALID_TENGO_VALUE_TYPES)}"
+            )
+            raise ValueError(msg)
+
+        command = " ".join(
+            [
+                "uv run stilyagi update-tengo-map",
+                f"--source {shlex.quote(source_str)}",
+                f"--dest {shlex.quote(dest_str)}",
+                f"--type {shlex.quote(value_type_str)}",
+            ]
+        )
+        commands.append(command)
+
+    return commands
 
 
 def _render_root_options(

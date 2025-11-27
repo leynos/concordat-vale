@@ -200,7 +200,12 @@ def run_install_with_manifest(
 style_name = "concordat"
 vocab = "manifest-vocab"
 min_alert_level = "error"
-post_sync_steps = ["echo manifest hook"]
+
+[[install.post_sync_steps]]
+action = "update-tengo-map"
+type = "true"
+source = ".config/common-acronyms"
+dest = ".vale/styles/config/scripts/AcronymsFirstUse.tengo"
 """
 
     archive_path = _build_manifest_archive(
@@ -249,7 +254,12 @@ post_sync_steps = ["echo manifest hook"]
     scenario_state["expected_packages_url"] = packages_url
     scenario_state["expected_vocab"] = "manifest-vocab"
     scenario_state["expected_min_alert_level"] = "error"
-    scenario_state["expected_post_sync_steps"] = ["echo manifest hook"]
+    scenario_state["expected_post_sync_steps"] = [
+        (
+            "uv run stilyagi update-tengo-map --source .config/common-acronyms "
+            "--dest .vale/styles/config/scripts/AcronymsFirstUse.tengo --type true"
+        )
+    ]
 
 
 @then("the external repository has a configured .vale.ini")

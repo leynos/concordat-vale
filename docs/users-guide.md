@@ -34,7 +34,11 @@ The command downloads the packaged archive to read `stilyagi.toml`, which
 defines the style name, vocabulary, `MinAlertLevel`, and any `post_sync_steps`
 to write into the consumer Makefile. If the manifest is missing or cannot be
 fetched, the defaults remain `style_name = concordat`, `vocab = concordat`,
-`min_alert_level = warning`, and `post_sync_steps = []`.
+`min_alert_level = warning`, and `post_sync_steps = []`. `post_sync_steps` is
+an array of tables; each entry must declare `action = "update-tengo-map"` plus
+`source`, `dest`, and optional `type` (`true`, `=`, `=b`, or `=n`). The
+installer renders these into constrained `uv run stilyagi update-tengo-map`
+commands instead of injecting arbitrary shell.
 
 - `stilyagi install <owner>/<repo>` fetches the latest GitHub release and uses
   the matching download URL in `.vale.ini`'s `Packages` entry. For Concordat
