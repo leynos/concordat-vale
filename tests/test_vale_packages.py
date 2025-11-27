@@ -72,7 +72,9 @@ def http_server(
     serve_dir = tmp_path_factory.mktemp("serve")
 
     class QuietHandler(http.server.SimpleHTTPRequestHandler):
-        def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+        def log_message(  # type: ignore[override]
+            self, msg_format: str, *args: object
+        ) -> None:
             return  # suppress noisy stderr logging during tests
 
     server = http.server.ThreadingHTTPServer(

@@ -248,6 +248,57 @@ def _load_install_manifest(
     )
 
 
+def _validate_update_tengo_map_step(step: dict[str, object]) -> tuple[str, str, str]:
+    """Validate and extract fields for an update-tengo-map action.
+
+    Parameters
+    ----------
+    step
+        Table entry from ``install.post_sync_steps``.
+
+    Returns
+    -------
+    tuple[str, str, str]
+        The (source, dest, value_type) strings used when rendering commands.
+
+    Raises
+    ------
+    ValueError
+        If the action or value type is invalid.
+    TypeError
+        If any required field is not a string.
+    """
+    action = step.get("action")
+    if action != "update-tengo-map":
+        msg = (
+            "install.post_sync_steps action must be 'update-tengo-map' "
+            f"(got {action!r})"
+        )
+        raise ValueError(msg)
+
+    source = step.get("source")
+    dest = step.get("dest")
+    value_type = step.get("type", "true")
+
+    for key, value in {"source": source, "dest": dest, "type": value_type}.items():
+        if not isinstance(value, str):
+            msg = f"install.post_sync_steps.{key} must be a string"
+            raise TypeError(msg)
+
+    source_str = typ.cast("str", source)
+    dest_str = typ.cast("str", dest)
+    value_type_str = typ.cast("str", value_type)
+
+    if value_type_str not in VALID_TENGO_VALUE_TYPES:
+        msg = (
+            "install.post_sync_steps.type must be one of "
+            f"{', '.join(VALID_TENGO_VALUE_TYPES)}"
+        )
+        raise ValueError(msg)
+
+    return source_str, dest_str, value_type_str
+
+
 def _parse_post_sync_steps_list(raw_steps: list[object]) -> list[str]:
     """Normalise trusted post-sync actions into Makefile-safe commands.
 
@@ -278,34 +329,9 @@ def _parse_post_sync_steps_list(raw_steps: list[object]) -> list[str]:
             raise TypeError(msg)
 
         typed_step = typ.cast("dict[str, object]", step)
-
-        action = typed_step.get("action")
-        if action != "update-tengo-map":
-            msg = (
-                "install.post_sync_steps action must be 'update-tengo-map' "
-                f"(got {action!r})"
-            )
-            raise ValueError(msg)
-
-        source = typed_step.get("source")
-        dest = typed_step.get("dest")
-        value_type = typed_step.get("type", "true")
-
-        for key, value in {"source": source, "dest": dest, "type": value_type}.items():
-            if not isinstance(value, str):
-                msg = f"install.post_sync_steps.{key} must be a string"
-                raise TypeError(msg)
-
-        source_str = typ.cast("str", source)
-        dest_str = typ.cast("str", dest)
-        value_type_str = typ.cast("str", value_type)
-
-        if value_type_str not in VALID_TENGO_VALUE_TYPES:
-            msg = (
-                "install.post_sync_steps.type must be one of "
-                f"{', '.join(VALID_TENGO_VALUE_TYPES)}"
-            )
-            raise ValueError(msg)
+        source_str, dest_str, value_type_str = _validate_update_tengo_map_step(
+            typed_step
+        )
 
         command = " ".join(
             [

@@ -379,7 +379,7 @@ def test_parse_install_manifest_non_mapping_install_section_uses_defaults() -> N
     _assert_default_manifest(manifest)
 
 
-def test_parse_install_manifest_accepts_string_post_sync_step() -> None:
+def test_parse_install_manifest_rejects_string_post_sync_step() -> None:
     """String post_sync_steps are rejected as invalid."""
     with pytest.raises(TypeError):
         stilyagi_install._parse_install_manifest(  # type: ignore[attr-defined]
