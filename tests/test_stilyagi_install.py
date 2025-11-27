@@ -30,6 +30,13 @@ DEFAULT_MANIFEST = stilyagi_install.InstallManifest(
 )
 
 
+def _assert_default_manifest(manifest: stilyagi_install.InstallManifest) -> None:
+    assert manifest.style_name == "concordat"
+    assert manifest.vocab_name == "concordat"
+    assert manifest.min_alert_level == "warning"
+    assert manifest.post_sync_steps == ()
+
+
 def test_update_vale_ini_merges_existing_values(tmp_path: Path) -> None:
     """Ensure required entries are inserted while preserving existing ones."""
     ini_path = tmp_path / ".vale.ini"
@@ -238,10 +245,7 @@ def test_parse_install_manifest_defaults() -> None:
         default_style_name="concordat",
     )
 
-    assert manifest.style_name == "concordat"
-    assert manifest.vocab_name == "concordat"
-    assert manifest.min_alert_level == "warning"
-    assert manifest.post_sync_steps == ()
+    _assert_default_manifest(manifest)
 
 
 @pytest.mark.parametrize(
@@ -347,10 +351,7 @@ def test_parse_install_manifest_non_mapping_raw_uses_defaults() -> None:
         default_style_name="concordat",
     )
 
-    assert manifest.style_name == "concordat"
-    assert manifest.vocab_name == "concordat"
-    assert manifest.min_alert_level == "warning"
-    assert manifest.post_sync_steps == ()
+    _assert_default_manifest(manifest)
 
 
 def test_parse_install_manifest_non_mapping_install_section_uses_defaults() -> None:
@@ -360,10 +361,7 @@ def test_parse_install_manifest_non_mapping_install_section_uses_defaults() -> N
         default_style_name="concordat",
     )
 
-    assert manifest.style_name == "concordat"
-    assert manifest.vocab_name == "concordat"
-    assert manifest.min_alert_level == "warning"
-    assert manifest.post_sync_steps == ()
+    _assert_default_manifest(manifest)
 
 
 def test_perform_install_honours_manifest_settings(
