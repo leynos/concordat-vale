@@ -40,8 +40,8 @@ fetched, the defaults remain `style_name = concordat`, `vocab = concordat`,
 be an array of tables; each entry must declare `action = "update-tengo-map"`
 plus `source`, `dest`, and optional `type` (`true`, `=`, `=b`, or `=n`). The
 installer renders these into constrained
-`uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi update-tengo-map`
- commands instead of injecting arbitrary shell.
+`uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi`
+`update-tengo-map` commands instead of injecting arbitrary shell commands.
 
 - `stilyagi install <owner>/<repo>` fetches the latest GitHub release and uses
   the matching download URL in `.vale.ini`'s `Packages` entry. For Concordat
