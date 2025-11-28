@@ -37,9 +37,9 @@ to write into the consumer Makefile. If the manifest is missing or cannot be
 fetched, the defaults remain `style_name = concordat`, `vocab = concordat`,
 `min_alert_level = warning`, and `post_sync_steps = []`. `post_sync_steps` must
 be an array of tables; each entry must declare `action = "update-tengo-map"`
-plus `source`, `dest`, and optional `type` (`true`, `=`, `=b`, or `=n`). The
-installer renders these entries as constrained `uvx` invocations instead of
-injecting arbitrary shell commands:
+plus `source`, `dest`, and optional `type` (`true`, `=`, `=b`, or `=n`).
+Instead of injecting arbitrary shell commands, the installer renders
+`post_sync_steps` entries as constrained `uvx` invocations:
 
 ```bash
 uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi \
