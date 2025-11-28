@@ -98,6 +98,9 @@
       `uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi update-tengo-map
       --source <src> --dest <dest> --type <t>` command. Unknown actions, invalid
       value types, or non-table entries are rejected at parse time.
+    Keep the pinned `stilyagi` source aligned with every other invocation in this
+    repository (Makefile, workflow, user guide) so packaging, installation, and
+    post-sync steps all run against the same release.
 - Setting the environment variable `STILYAGI_SKIP_MANIFEST_DOWNLOAD=1` skips
   manifest retrieval and falls back to the built-in defaults. This keeps tests
   and offline workflows deterministic while retaining manifest support for real
