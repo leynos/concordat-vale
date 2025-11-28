@@ -4,6 +4,7 @@ MDFORMAT_ALL ?= $(shell which mdformat-all)
 TOOLS = $(MDFORMAT_ALL) ruff ty $(MDLINT) $(NIXIE) uv
 VENV_TOOLS = pytest
 UV_ENV = UV_CACHE_DIR=.uv-cache UV_TOOL_DIR=.uv-tools
+STILYAGI_SOURCE ?= https://github.com/leynos/stilyagi.git@v0.1.0
 PYTHON ?= python3
 VALE ?= vale
 VALE_CONFIG ?= .vale.ini
@@ -85,8 +86,8 @@ nixie: $(NIXIE) ## Validate Mermaid diagrams
 	$(NIXIE) --no-sandbox
 
 vale-archive: build ## Build the dev Concordat archive for local linting
-	$(UV_ENV) uvx --from https://github.com/leynos/stilyagi.git \
-	  stilyagi zip --archive-version dev --force
+	$(UV_ENV) uvx --from $(STILYAGI_SOURCE) stilyagi zip \
+	  --archive-version dev --force
 
 vale-sync: vale-archive ## Sync Concordat into .vale/styles
 	$(VALE) sync --config $(VALE_CONFIG)

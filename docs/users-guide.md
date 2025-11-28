@@ -2,6 +2,8 @@
 
 ## Packaging the Vale style with `stilyagi`
 
+- Prerequisites: `uv` 0.4.0 or newer (for `uvx`); install `uv` once and reuse
+  the bundled `uvx` shim.
 - Run `uvx --from https://github.com/leynos/stilyagi.git stilyagi zip` from the
   repository root to create a distributable ZIP that contains `.vale.ini` plus
   the full `styles/` tree.
@@ -91,12 +93,12 @@ entries):
 VALE ?= vale
 .PHONY: vale
 
-	vale: $(VALE) ## Check prose
-		$(VALE) sync
-		uvx --from https://github.com/leynos/stilyagi.git stilyagi \
-		  update-tengo-map --source .config/common-acronyms \
-		  --dest .vale/styles/config/scripts/AcronymsFirstUse.tengo
-		$(VALE) --no-global .
+vale: $(VALE) ## Check prose
+	$(VALE) sync
+	uvx --from https://github.com/leynos/stilyagi.git stilyagi \
+	  update-tengo-map --source .config/common-acronyms \
+	  --dest .vale/styles/config/scripts/AcronymsFirstUse.tengo
+	$(VALE) --no-global .
 ```
 
 When `post_sync_steps` is empty, the target falls back to running only
