@@ -10,8 +10,8 @@
 
 ## CLI surface
 
-- `stilyagi` now lives at <https://github.com/leynos/stilyagi.git>; invoke it
-  via `uvx --from https://github.com/leynos/stilyagi.git stilyagi ...`.
+- `stilyagi` now lives at <https://github.com/leynos/stilyagi.git@v0.1.0>; invoke it
+  via `uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi ...`.
 - Cyclopts drives the CLI with an `STILYAGI_` environment prefix, so every flag
   can also be injected via CI inputs.
 - The `zip` sub-command is focused on packaging. Other automation should be
@@ -94,7 +94,7 @@
     - `post_sync_steps` (default: `[]`) is an array of tables describing trusted
       actions to run after `vale sync` and before linting. The only structured
       action today is `update-tengo-map`, which renders a fixed
-      `uvx --from https://github.com/leynos/stilyagi.git stilyagi update-tengo-map
+      `uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi update-tengo-map
       --source <src> --dest <dest> --type <t>` command. Unknown actions, invalid
       value types, or non-table entries are rejected at parse time.
 - Setting the environment variable `STILYAGI_SKIP_MANIFEST_DOWNLOAD=1` skips
@@ -108,7 +108,7 @@
   generation, vocabulary selection, rejection of missing directories, and both
   overwrite paths (`--force` and refusal without it).
 - Behavioural tests (`pytest-bdd`) exercise the CLI end-to-end by running
-  `uvx --from https://github.com/leynos/stilyagi.git stilyagi zip` against a
+  `uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi zip` against a
   staged copy of the real `styles/` tree. Scenarios now cover successful
   packaging plus environment overrides, asserting that the archive contains
   both the rules/config and that the generated `.vale.ini` only exposes the

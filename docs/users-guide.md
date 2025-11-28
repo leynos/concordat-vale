@@ -4,7 +4,7 @@
 
 - Prerequisites: `uv` 0.4.0 or newer (for `uvx`); install `uv` once and reuse
   the bundled `uvx` shim.
-- Run `uvx --from https://github.com/leynos/stilyagi.git stilyagi zip` from the
+- Run `uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi zip` from the
   repository root to create a distributable ZIP that contains `.vale.ini` plus
   the full `styles/` tree.
 - When present, `stilyagi.toml` at the repository root is copied into the
@@ -15,7 +15,7 @@
 ### Default workflow
 
 1. `make build` (installs dependencies when needed).
-2. `uvx --from https://github.com/leynos/stilyagi.git stilyagi zip`
+2. `uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi zip`
 3. Retrieve the archive from `dist/concordat-<version>.zip` and attach it to
    the release currently being prepared.
 
@@ -39,7 +39,7 @@ fetched, the defaults remain `style_name = concordat`, `vocab = concordat`,
 be an array of tables; each entry must declare `action = "update-tengo-map"`
 plus `source`, `dest`, and optional `type` (`true`, `=`, `=b`, or `=n`). The
 installer renders these into constrained
-`uvx --from https://github.com/leynos/stilyagi.git stilyagi update-tengo-map`
+`uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi update-tengo-map`
 commands instead of injecting arbitrary shell.
 
 - `stilyagi install <owner>/<repo>` fetches the latest GitHub release and uses
@@ -56,7 +56,7 @@ Example installation flow:
 
 ```bash
 cd ~/Projects/limela
-uvx --from https://github.com/leynos/stilyagi.git \
+uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 \
   stilyagi install leynos/concordat-vale
 ```
 
@@ -95,7 +95,7 @@ VALE ?= vale
 
 vale: $(VALE) ## Check prose
 	$(VALE) sync
-	uvx --from https://github.com/leynos/stilyagi.git stilyagi \
+	uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi \
 	  update-tengo-map --source .config/common-acronyms \
 	  --dest .vale/styles/config/scripts/AcronymsFirstUse.tengo
 	$(VALE) --no-global .
@@ -109,7 +109,7 @@ When `post_sync_steps` is empty, the target falls back to running only
 - `--archive-version` can be used to override the archive suffix (for example):
 
   ```bash
-  uvx --from https://github.com/leynos/stilyagi.git stilyagi zip \
+  uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi zip \
     --archive-version 2025.11.07
   ```
 
@@ -132,7 +132,7 @@ When `post_sync_steps` is empty, the target falls back to running only
 ### Verifying the artefact locally
 
 1. Regenerate the archive via
-   `uvx --from https://github.com/leynos/stilyagi.git stilyagi zip --force`.
+   `uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi zip --force`.
 2. Unzip the resulting file and inspect `.vale.ini` to confirm it references the
    expected style list and vocabulary.
 3. Validate the package inside a consumer repository by temporarily
@@ -159,7 +159,7 @@ publishes the resulting ZIP straight to the matching release.
    what remains.
 3. Packaging: dependencies are installed via `uv sync --group dev --frozen`,
    then
-   `uvx --from https://github.com/leynos/stilyagi.git stilyagi zip --force`
+   `uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi zip --force`
    emits `dist/concordat-<version>.zip` and records the artefact path for later
    steps.
 4. Upload: `gh release upload` attaches the freshly generated archive to the
@@ -233,7 +233,7 @@ and references the locally built archive `dist/concordat-dev.zip`. Running
 1. `make vale-archive` rebuilds the development archive via:
 
    ```bash
-   uvx --from https://github.com/leynos/stilyagi.git stilyagi zip \
+   uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi zip \
      --archive-version dev --force
    ```
 
@@ -288,7 +288,7 @@ without leaving merge conflicts in the generated Tengo source.
 - Example: to inject local acronyms without the helper script, run:
 
   ```bash
-  uvx --from https://github.com/leynos/stilyagi.git stilyagi update-tengo-map \
+  uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi update-tengo-map \
     --source .config/common-acronyms \
     --dest .vale/styles/config/scripts/AcronymsFirstUse.tengo
   ```
