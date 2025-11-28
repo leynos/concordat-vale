@@ -11,8 +11,8 @@
 ## CLI surface
 
 - `stilyagi` now lives at <https://github.com/leynos/stilyagi.git@v0.1.0>;
-  invoke it
-  via `uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi ...`.
+  invoke it via
+  `uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi ...`.
 - Cyclopts drives the CLI with an `STILYAGI_` environment prefix, so every flag
   can also be injected via CI inputs.
 - The `zip` sub-command is focused on packaging. Other automation should be

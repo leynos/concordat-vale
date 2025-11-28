@@ -5,9 +5,8 @@
 - Prerequisites: `uv` 0.4.0 or newer (for `uvx`); install `uv` once and reuse
   the bundled `uvx` shim.
 - Run `uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi zip`
-  from the
-  repository root to create a distributable ZIP that contains `.vale.ini` plus
-  the full `styles/` tree.
+  from the repository root to create a distributable ZIP that contains
+  `.vale.ini` plus the full `styles/` tree.
 - When present, `stilyagi.toml` at the repository root is copied into the
   archive. It documents the install-time defaults (style name, vocabulary,
   alert level, and any `post_sync_steps`) that consumer repositories should
