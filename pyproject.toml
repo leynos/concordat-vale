@@ -6,21 +6,13 @@ readme = "README.md"
 requires-python = ">=3.13"
 license = { text = "ISC" }
 authors = [{ name = "Payton McIntosh", email = "pmcintosh@df12.net" }]
-dependencies = [
-    "cyclopts>=2.9",
-]
-
-[project.scripts]
-stilyagi = "concordat_vale.stilyagi:main"
 
 [dependency-groups]
 dev = [
     "pytest",
     "pytest-xdist",
-    "ruff",
     "pytest-timeout",
-    "pytest-bdd",
-    "parse_type",
+    "ruff",
     "valedate==0.1.0b1",
 ]
 

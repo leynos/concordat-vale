@@ -2,6 +2,9 @@
 ---
 name: release
 
+env:
+  STILYAGI_SOURCE: https://github.com/leynos/stilyagi.git@v0.1.0
+
 on:
   release:
     types:
@@ -117,7 +120,7 @@ jobs:
         run: |
           set -euo pipefail
           archive_path="$(
-            uv run stilyagi zip \
+            uvx --from "${STILYAGI_SOURCE}" stilyagi zip \
               --archive-version "${{ steps.meta.outputs.version }}" \
               --force
           )"
