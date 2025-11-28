@@ -10,7 +10,8 @@
 
 ## CLI surface
 
-- `stilyagi` now lives at <https://github.com/leynos/stilyagi.git@v0.1.0>; invoke it
+- `stilyagi` now lives at <https://github.com/leynos/stilyagi.git@v0.1.0>;
+  invoke it
   via `uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi ...`.
 - Cyclopts drives the CLI with an `STILYAGI_` environment prefix, so every flag
   can also be injected via CI inputs.
@@ -108,9 +109,9 @@
   generation, vocabulary selection, rejection of missing directories, and both
   overwrite paths (`--force` and refusal without it).
 - Behavioural tests (`pytest-bdd`) exercise the CLI end-to-end by running
-  `uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi zip` against a
-  staged copy of the real `styles/` tree. Scenarios now cover successful
-  packaging plus environment overrides, asserting that the archive contains
-  both the rules/config and that the generated `.vale.ini` only exposes the
-  core settings. Direct subprocess tests validate error reporting and exit
-  codes.
+  `uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi zip`
+  against a staged copy of the real `styles/` tree. Scenarios now cover
+  successful packaging plus environment overrides, asserting that the archive
+  contains both the rules/config and that the generated `.vale.ini` only
+  exposes the core settings. Direct subprocess tests validate error reporting
+  and exit codes.

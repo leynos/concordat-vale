@@ -30,7 +30,6 @@ jobs:
     env:
       UV_CACHE_DIR: .uv-cache
       UV_TOOL_DIR: .uv-tools
-      STILYAGI_SOURCE: ${{ env.STILYAGI_SOURCE }}
     steps:
       - name: Check out repository
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955

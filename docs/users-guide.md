@@ -4,7 +4,8 @@
 
 - Prerequisites: `uv` 0.4.0 or newer (for `uvx`); install `uv` once and reuse
   the bundled `uvx` shim.
-- Run `uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi zip` from the
+- Run `uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi zip`
+  from the
   repository root to create a distributable ZIP that contains `.vale.ini` plus
   the full `styles/` tree.
 - When present, `stilyagi.toml` at the repository root is copied into the
@@ -40,7 +41,7 @@ be an array of tables; each entry must declare `action = "update-tengo-map"`
 plus `source`, `dest`, and optional `type` (`true`, `=`, `=b`, or `=n`). The
 installer renders these into constrained
 `uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi update-tengo-map`
-commands instead of injecting arbitrary shell.
+ commands instead of injecting arbitrary shell.
 
 - `stilyagi install <owner>/<repo>` fetches the latest GitHub release and uses
   the matching download URL in `.vale.ini`'s `Packages` entry. For Concordat
@@ -160,8 +161,8 @@ publishes the resulting ZIP straight to the matching release.
 3. Packaging: dependencies are installed via `uv sync --group dev --frozen`,
    then
    `uvx --from https://github.com/leynos/stilyagi.git@v0.1.0 stilyagi zip --force`
-   emits `dist/concordat-<version>.zip` and records the artefact path for later
-   steps.
+    emits `dist/concordat-<version>.zip` and records the artefact path for
+   later steps.
 4. Upload: `gh release upload` attaches the freshly generated archive to the
    release that supplied the tag, replacing any older asset with the same name.
 

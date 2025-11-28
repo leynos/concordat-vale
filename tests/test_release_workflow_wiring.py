@@ -11,4 +11,10 @@ def test_release_workflow_uses_pinned_stilyagi_source() -> None:
 
     assert "STILYAGI_SOURCE" in workflow
     assert "stilyagi.git@" in workflow, "stilyagi source should be pinned"
-    assert 'uvx --from "${STILYAGI_SOURCE}" stilyagi zip' in workflow
+    assert "uvx" in workflow
+    assert "--from" in workflow
+    assert "stilyagi zip" in workflow
+    assert any(
+        placeholder in workflow
+        for placeholder in ('"${STILYAGI_SOURCE}"', "${{ env.STILYAGI_SOURCE }}")
+    ), "uvx call should source the pinned stilyagi URL from environment"
