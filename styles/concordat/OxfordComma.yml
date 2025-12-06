@@ -6,4 +6,4 @@ scope: sentence
 nonword: true
 # Heuristic: flag a simple 3-item list lacking the comma before the final 'and/or'.
 tokens:
-  - '\b[^,]{1,40},\s[^,]{1,40}(?!,)\s(?:and|or)\s[^,]{1,40}(?!(?:\)\s+(?:and|or)))'
+  - '\b[^,]{1,40},\s(?!with\b|without\b|whether\b|while\b|when\b|where\b|if\b|unless\b|until\b|because\b|since\b|and\b|or\b|but\b|so\b)[^,]{1,40}(?!,)\s(?:and|or)\s[^,]{1,40}(?!(?:\)\s+(?:and|or)))'

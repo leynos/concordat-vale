@@ -117,3 +117,23 @@ def test_oxford_comma_allows_parenthetical_with_serial_comma(
     diags = concordat_vale.lint(text)
 
     assert diags == [], "expected no diagnostics when comma precedes the conjunction"
+
+
+def test_oxford_comma_ignores_with_or_without_clause(
+    concordat_vale: Valedate,
+) -> None:
+    """Phrases like 'with or without fee' are not serial lists."""
+    text = textwrap.dedent(
+        """
+        ISC Licence — because that’s how we roll. You’re free to use, copy, modify, and
+        distribute this software for any purpose, with or without fee, and provided
+        that the copyright notice and this permission notice are included in all
+        copies.
+        """
+    )
+
+    diags = concordat_vale.lint(text)
+
+    assert not any(diag.check == "concordat.OxfordComma" for diag in diags), (
+        "with/without clause should not be treated as a three-item list"
+    )
