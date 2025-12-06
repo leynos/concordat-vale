@@ -11,12 +11,12 @@ tokens:
   - |
       (?ix)                     # ignore case, allow comments/whitespace
       \b
-      [^,]{1,40},\s            # first item and comma
+      [^,]{1,60},\s*           # first item and comma
       (?!                       # exclude clauses that are not lists
-        (?:with|without|whether|while|when|where|if|unless|
-           until|because|since|which|that|and|or|but|so)\b
+        \s*(?:with|without|whether|while|when|where|if|unless|
+           until|because|since|which|that|who|whom|whose|and|or|but|so)\b
       )
-      [^,]{1,40}(?!,)           # second item without trailing comma
+      [^,]{1,60}(?!,)           # second item without trailing comma
       \s(?:and|or)\s           # coordinator before last item
-      [^,]{1,40}                # final item
+      [^,]{1,60}                # final item
       (?! (?:\)\s+(?:and|or))) # avoid parenthetical follow-ons

@@ -5,6 +5,8 @@ from __future__ import annotations
 import textwrap
 import typing as typ
 
+import pytest
+
 if typ.TYPE_CHECKING:
     from valedate import Valedate
 
@@ -165,14 +167,18 @@ def test_oxford_comma_ignores_because_clauses_without_serial_comma(
     )
 
 
+@pytest.mark.parametrize(
+    "clause_lead",
+    ["which", "that", "Which", "That", "who", "Whose"],
+)
 def test_oxford_comma_ignores_relative_clause_after_comma(
-    concordat_vale: Valedate,
+    concordat_vale: Valedate, clause_lead: str
 ) -> None:
-    """Relative clauses like ', which ... and ...' should not be treated as lists."""
+    """Relative clauses like ', which/that ...' should not be treated as lists."""
     text = textwrap.dedent(
-        """
+        f"""
         The primary goal of this phase is to validate the core architectural decision:
-        using `inventory` for link-time collection of step definitions, which are then
+        using `inventory` for link-time collection of step definitions, {clause_lead} are then
         discovered and executed by a procedural macro at runtime.
         """
     )
@@ -180,5 +186,20 @@ def test_oxford_comma_ignores_relative_clause_after_comma(
     diags = concordat_vale.lint(text)
 
     assert all(diag.check != "concordat.OxfordComma" for diag in diags), (
-        "Relative clauses starting with 'which' should not trigger OxfordComma"
+        "Relative clauses should not trigger OxfordComma"
+    )
+
+
+def test_oxford_comma_allows_no_space_before_relative_clause(
+    concordat_vale: Valedate,
+) -> None:
+    """Comma-tight relative clauses (,which) should also be exempt."""
+    text = (
+        "The module exports alpha, beta,which are then loaded at runtime, without error."
+    )
+
+    diags = concordat_vale.lint(text)
+
+    assert all(diag.check != "concordat.OxfordComma" for diag in diags), (
+        "Tight relative clause should not trigger OxfordComma"
     )
