@@ -221,7 +221,7 @@ ______________________________________________________________________
 - [ ] All suggestion/fixer Tengo in `styles/config/actions/`
 - [ ] Vocab in `styles/config/vocabularies/<name>/(accept|reject).txt`
 - [ ] Optional Hunspell in `styles/config/dictionaries/`
-- [ ] Root `.vale.ini` points `StylesPath = styles` and enables the packaged
+- [ ] Root `.vale.ini` points `StylesPath = .vale/styles` and enables the packaged
       style/vocab
 - [ ] Versioned ZIP built from `.vale.ini` + `styles/`
 - [ ] Release asset URL stable and documented for consumers

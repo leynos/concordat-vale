@@ -69,6 +69,7 @@ uvx --from ${STILYAGI_SOURCE} \
 After running the command, the consumer repository will contain:
 
 ```ini
+StylesPath = .vale/styles
 Packages = https://github.com/leynos/concordat-vale/releases/download/v<version>/concordat-<version>.zip
 MinAlertLevel = warning
 Vocab = concordat
