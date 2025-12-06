@@ -167,10 +167,7 @@ def test_oxford_comma_ignores_because_clauses_without_serial_comma(
     )
 
 
-@pytest.mark.parametrize(
-    "clause_lead",
-    ["which", "that", "Which", "That", "who", "Whose"],
-)
+@pytest.mark.parametrize("clause_lead", ["which", "that", "Which", "That"])
 def test_oxford_comma_ignores_relative_clause_after_comma(
     concordat_vale: Valedate, clause_lead: str
 ) -> None:
@@ -190,6 +187,24 @@ def test_oxford_comma_ignores_relative_clause_after_comma(
     )
 
 
+@pytest.mark.parametrize("clause_lead", ["who", "Who", "whom", "Whom", "whose", "Whose"])
+def test_oxford_comma_ignores_human_relative_clauses(
+    concordat_vale: Valedate, clause_lead: str
+) -> None:
+    """Human relative clauses should also be exempt from the rule."""
+    text = textwrap.dedent(
+        f"""
+        Users, {clause_lead} are invited and approved, may access the beta.
+        """
+    )
+
+    diags = concordat_vale.lint(text)
+
+    assert all(diag.check != "concordat.OxfordComma" for diag in diags), (
+        "Human relative clauses should not trigger OxfordComma"
+    )
+
+
 def test_oxford_comma_allows_no_space_before_relative_clause(
     concordat_vale: Valedate,
 ) -> None:
@@ -202,4 +217,22 @@ def test_oxford_comma_allows_no_space_before_relative_clause(
 
     assert all(diag.check != "concordat.OxfordComma" for diag in diags), (
         "Tight relative clause should not trigger OxfordComma"
+    )
+
+
+def test_oxford_comma_allows_long_token_before_relative_clause(
+    concordat_vale: Valedate,
+) -> None:
+    """Long pre-clause tokens should still be exempt after widening limits."""
+    text = textwrap.dedent(
+        """
+        The especially long introductory phrase containing many descriptive words and clauses,
+        which ultimately still merely sets context, should not be flagged as a list.
+        """
+    )
+
+    diags = concordat_vale.lint(text)
+
+    assert all(diag.check != "concordat.OxfordComma" for diag in diags), (
+        "Long pre-clause token should remain exempt from OxfordComma"
     )
