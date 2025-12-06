@@ -5,10 +5,10 @@ from __future__ import annotations
 import typing as typ
 
 if typ.TYPE_CHECKING:
-    from valedate import Valedate
+    from valedate import Valedate, ValeDiagnostic
 
 
-def _acronym_diagnostics(concordat_vale: Valedate, text: str) -> list:
+def _acronym_diagnostics(concordat_vale: Valedate, text: str) -> list[ValeDiagnostic]:
     """Return AcronymsFirstUse diagnostics for the provided text."""
     return [
         diag
@@ -30,6 +30,19 @@ def test_acronyms_first_use_flags_unexpanded_acronyms(
     diag = diags[0]
     assert diag.severity == "warning", "AcronymsFirstUse should warn on first use"
     assert diag.line == 1, "single-line acronym should report on line 1"
+
+
+def test_acronyms_first_use_flags_mid_sentence_acronym(
+    concordat_vale: Valedate,
+) -> None:
+    """Acronyms following words should still require expansion."""
+    diags = _acronym_diagnostics(
+        concordat_vale,
+        "Visit NASA headquarters for a tour.",
+    )
+
+    assert len(diags) == 1, "expected NASA to require an expansion mid-sentence"
+    assert diags[0].line == 1, "mid-sentence acronym should still report on line 1"
 
 
 def test_acronyms_first_use_ignores_composite_tokens(

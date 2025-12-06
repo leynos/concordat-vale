@@ -485,9 +485,9 @@ for i < n {
         break
       }
 
-      if prev_idx != -1 && (is_lower(prev) || is_digit(prev)) {
+      if prev_idx == i-1 && (is_lower(prev) || is_digit(prev)) {
         // Skip uppercase fragments welded onto a lowercase prefix (for
-        // example, PyPI or GraphQL).
+        // example, PyPI or GraphQL) when they are immediately adjacent.
         i = j
         continue
       }
