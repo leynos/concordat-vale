@@ -94,6 +94,7 @@ is_upper := func(ch) { return len(ch) == 1 && ch >= "A" && ch <= "Z" }
 is_lower := func(ch) { return len(ch) == 1 && ch >= "a" && ch <= "z" }
 is_digit := func(ch) { return len(ch) == 1 && ch >= "0" && ch <= "9" }
 is_space := func(ch) { return ch == " " || ch == "\t" || ch == "\n" || ch == "\r" }
+is_joiner := func(ch) { return ch == ":" || ch == ";" || ch == "/" || ch == "-" || ch == "+" }
 
 is_md_rule := func(word) {
   if len(word) < 3 {
@@ -471,6 +472,44 @@ for i < n {
         continue
       }
 
+      prev_idx := -1
+      prev := ""
+      k := i - 1
+      for k >= 0 {
+        prev = s[k:k+1]
+        if is_space(prev) {
+          k -= 1
+          continue
+        }
+        prev_idx = k
+        break
+      }
+
+      if prev_idx == i-1 && (is_lower(prev) || is_digit(prev)) {
+        // Skip uppercase fragments welded onto a lowercase prefix (for
+        // example, PyPI or GraphQL) when they are immediately adjacent.
+        i = j
+        continue
+      }
+
+      next := ""
+      if j < n {
+        next = s[j:j+1]
+      }
+
+      if next != "" && is_joiner(next) && j+1 < n && is_upper(s[j+1:j+2]) {
+        // Ignore composite uppercase tokens split by punctuation (for example,
+        // TL;DR or TLS/SSL) rather than flagging each fragment separately.
+        i = j + 1
+        continue
+      }
+
+      if prev_idx > 0 && is_joiner(prev) && is_upper(s[prev_idx-1:prev_idx]) {
+        // Symmetric handling for the fragment following the punctuation.
+        i = j
+        continue
+      }
+
       base := s[i:j]
 
       skip := 0
@@ -483,17 +522,6 @@ for i < n {
       if is_md_rule(base) && is_in_comment(i) {
         i = j + skip
         continue
-      }
-
-      prev := ""
-      k := i - 1
-      for k >= 0 {
-        prev = s[k:k+1]
-        if is_space(prev) {
-          k -= 1
-          continue
-        }
-        break
       }
 
       if prev == "(" {
