@@ -117,3 +117,49 @@ def test_oxford_comma_allows_parenthetical_with_serial_comma(
     diags = concordat_vale.lint(text)
 
     assert diags == [], "expected no diagnostics when comma precedes the conjunction"
+
+
+def test_oxford_comma_ignores_with_or_without_clause(
+    concordat_vale: Valedate,
+) -> None:
+    """Phrases like 'with or without fee' are not serial lists."""
+    text = textwrap.dedent(
+        """
+        ISC Licence — because that’s how we roll. You’re free to use, copy, modify, and
+        distribute this software for any purpose, with or without fee, and provided
+        that the copyright notice and this permission notice are included in all
+        copies.
+        """
+    )
+
+    diags = concordat_vale.lint(text)
+
+    assert all(diag.check != "concordat.OxfordComma" for diag in diags), (
+        "with/without clause should not be treated as a three-item list"
+    )
+
+
+def test_oxford_comma_ignores_capitalized_with_or_without(
+    concordat_vale: Valedate,
+) -> None:
+    """Capitalized subordinator clauses must also be exempt from the rule."""
+    text = "With or without fee, and provided notice remains, distribution is fine."
+
+    diags = concordat_vale.lint(text)
+
+    assert all(diag.check != "concordat.OxfordComma" for diag in diags), (
+        "Capitalized 'With or without' clause should not trigger OxfordComma"
+    )
+
+
+def test_oxford_comma_ignores_because_clauses_without_serial_comma(
+    concordat_vale: Valedate,
+) -> None:
+    """Clauses starting with subordinators shouldn't be treated as lists."""
+    text = "We paused, because of outages, and because of staffing."
+
+    diags = concordat_vale.lint(text)
+
+    assert all(diag.check != "concordat.OxfordComma" for diag in diags), (
+        "Subordinator-led clause should not be flagged as a missing Oxford comma"
+    )
