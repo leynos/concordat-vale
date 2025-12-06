@@ -14,7 +14,7 @@ tokens:
       [^,]{1,40},\s            # first item and comma
       (?!                       # exclude clauses that are not lists
         (?:with|without|whether|while|when|where|if|unless|
-           until|because|since|and|or|but|so)\b
+           until|because|since|which|that|and|or|but|so)\b
       )
       [^,]{1,40}(?!,)           # second item without trailing comma
       \s(?:and|or)\s           # coordinator before last item

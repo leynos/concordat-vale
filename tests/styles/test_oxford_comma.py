@@ -163,3 +163,22 @@ def test_oxford_comma_ignores_because_clauses_without_serial_comma(
     assert all(diag.check != "concordat.OxfordComma" for diag in diags), (
         "Subordinator-led clause should not be flagged as a missing Oxford comma"
     )
+
+
+def test_oxford_comma_ignores_relative_clause_after_comma(
+    concordat_vale: Valedate,
+) -> None:
+    """Relative clauses like ', which ... and ...' should not be treated as lists."""
+    text = textwrap.dedent(
+        """
+        The primary goal of this phase is to validate the core architectural decision:
+        using `inventory` for link-time collection of step definitions, which are then
+        discovered and executed by a procedural macro at runtime.
+        """
+    )
+
+    diags = concordat_vale.lint(text)
+
+    assert all(diag.check != "concordat.OxfordComma" for diag in diags), (
+        "Relative clauses starting with 'which' should not trigger OxfordComma"
+    )
