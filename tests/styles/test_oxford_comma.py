@@ -134,6 +134,32 @@ def test_oxford_comma_ignores_with_or_without_clause(
 
     diags = concordat_vale.lint(text)
 
-    assert not any(diag.check == "concordat.OxfordComma" for diag in diags), (
+    assert all(diag.check != "concordat.OxfordComma" for diag in diags), (
         "with/without clause should not be treated as a three-item list"
+    )
+
+
+def test_oxford_comma_ignores_capitalized_with_or_without(
+    concordat_vale: Valedate,
+) -> None:
+    """Capitalized subordinator clauses must also be exempt from the rule."""
+    text = "With or without fee, and provided notice remains, distribution is fine."
+
+    diags = concordat_vale.lint(text)
+
+    assert all(diag.check != "concordat.OxfordComma" for diag in diags), (
+        "Capitalized 'With or without' clause should not trigger OxfordComma"
+    )
+
+
+def test_oxford_comma_ignores_because_clauses_without_serial_comma(
+    concordat_vale: Valedate,
+) -> None:
+    """Clauses starting with subordinators shouldn't be treated as lists."""
+    text = "We paused, because of outages, and because of staffing."
+
+    diags = concordat_vale.lint(text)
+
+    assert all(diag.check != "concordat.OxfordComma" for diag in diags), (
+        "Subordinator-led clause should not be flagged as a missing Oxford comma"
     )

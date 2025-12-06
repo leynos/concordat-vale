@@ -4,6 +4,19 @@ link: "House style: Oxford comma where it aids comprehension."
 level: warning
 scope: sentence
 nonword: true
-# Heuristic: flag a simple 3-item list lacking the comma before the final 'and/or'.
+# Heuristic: flag a simple 3-item list lacking the comma before the final
+# 'and/or'. Use verbose, case-insensitive regex for readability and to ensure
+# capitalised subordinators (e.g., 'With', 'Because') are ignored, too.
 tokens:
-  - '\b[^,]{1,40},\s(?!with\b|without\b|whether\b|while\b|when\b|where\b|if\b|unless\b|until\b|because\b|since\b|and\b|or\b|but\b|so\b)[^,]{1,40}(?!,)\s(?:and|or)\s[^,]{1,40}(?!(?:\)\s+(?:and|or)))'
+  - |
+      (?ix)                     # ignore case, allow comments/whitespace
+      \b
+      [^,]{1,40},\s            # first item and comma
+      (?!                       # exclude clauses that are not lists
+        (?:with|without|whether|while|when|where|if|unless|
+           until|because|since|and|or|but|so)\b
+      )
+      [^,]{1,40}(?!,)           # second item without trailing comma
+      \s(?:and|or)\s           # coordinator before last item
+      [^,]{1,40}                # final item
+      (?! (?:\)\s+(?:and|or))) # avoid parenthetical follow-ons
