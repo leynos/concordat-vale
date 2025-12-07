@@ -27,7 +27,7 @@ jobs:
     env:
       UV_CACHE_DIR: .uv-cache
       UV_TOOL_DIR: .uv-tools
-      STILYAGI_SOURCE: https://github.com/leynos/stilyagi.git@v0.1.0
+      STILYAGI_SOURCE: git+https://github.com/leynos/stilyagi.git@v0.1.0
     steps:
       - name: Check out repository
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
