@@ -40,6 +40,30 @@ def test_oxford_comma_allows_serial_comma(
     assert diags == [], "expected no diagnostics for correct serial comma"
 
 
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "I like apples, bananas and oranges.",
+        "We value performance, maintainability and readability.",
+        "Define, implement and test the feature.",
+        "The NSA, GCHQ and CSE did something controversial.",
+        "She was tall, strong and silent.",
+        "The function accepts integers, floats or strings.",
+        "Use tabs, spaces or a mix at your own peril.",
+        "The tool checks style, formatting and spelling.",
+        "Our priorities are security, usability and performance.",
+    ],
+)
+def test_oxford_comma_warns_on_simple_lists(
+    concordat_vale: Valedate, sentence: str
+) -> None:
+    """Simple three-item lists without the serial comma should warn once."""
+    diags = concordat_vale.lint(sentence)
+
+    oxford_diags = [diag for diag in diags if diag.check == "concordat.OxfordComma"]
+    assert len(oxford_diags) == 1, "expected a single OxfordComma diagnostic"
+
+
 def test_oxford_comma_reports_every_sentence_in_files(
     concordat_vale: Valedate,
 ) -> None:
@@ -174,9 +198,10 @@ def test_oxford_comma_ignores_relative_clause_after_comma(
     """Relative clauses like ', which/that ...' should not be treated as lists."""
     text = textwrap.dedent(
         f"""
-        The primary goal of this phase is to validate the core architectural decision:
-        using `inventory` for link-time collection of step definitions, {clause_lead} are then
-        discovered and executed by a procedural macro at runtime.
+        The primary goal of this phase is to validate the core architectural
+        decision: using `inventory` for link-time collection of step
+        definitions, {clause_lead} are then discovered and executed by a
+        procedural macro at runtime.
         """
     )
 
@@ -187,7 +212,9 @@ def test_oxford_comma_ignores_relative_clause_after_comma(
     )
 
 
-@pytest.mark.parametrize("clause_lead", ["who", "Who", "whom", "Whom", "whose", "Whose"])
+@pytest.mark.parametrize(
+    "clause_lead", ["who", "Who", "whom", "Whom", "whose", "Whose"]
+)
 def test_oxford_comma_ignores_human_relative_clauses(
     concordat_vale: Valedate, clause_lead: str
 ) -> None:
@@ -210,7 +237,8 @@ def test_oxford_comma_allows_no_space_before_relative_clause(
 ) -> None:
     """Comma-tight relative clauses (,which) should also be exempt."""
     text = (
-        "The module exports alpha, beta,which are then loaded at runtime, without error."
+        "The module exports alpha, beta,which are then loaded at runtime, "
+        "without error."
     )
 
     diags = concordat_vale.lint(text)
@@ -226,8 +254,9 @@ def test_oxford_comma_allows_long_token_before_relative_clause(
     """Long pre-clause tokens should still be exempt after widening limits."""
     text = textwrap.dedent(
         """
-        The especially long introductory phrase containing many descriptive words and clauses,
-        which ultimately still merely sets context, should not be flagged as a list.
+        The especially long introductory phrase containing many descriptive
+        words and clauses, which ultimately still merely sets context, should
+        not be flagged as a list.
         """
     )
 
@@ -235,4 +264,44 @@ def test_oxford_comma_allows_long_token_before_relative_clause(
 
     assert all(diag.check != "concordat.OxfordComma" for diag in diags), (
         "Long pre-clause token should remain exempt from OxfordComma"
+    )
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        (
+            "Unchecked complexity can transform a once-manageable system into a "
+            '"full-blown algorithmic monster," torpedoing performance and '
+            "maintainability."
+        ),
+        (
+            "This reveals that rustdoc's design implicitly prioritizes the "
+            "integrity of the public contract over the convenience of a single, "
+            "unified system for testable documentation of both public and private "
+            "code."
+        ),
+        "I like apples, bananas, and oranges.",
+        "We value performance, maintainability, and readability.",
+        "Define, implement, and test the feature.",
+        "The NSA, GCHQ, and CSE did something controversial.",
+        (
+            "We care about speed, ease of maintenance under changing requirements "
+            "and robustness across environments."
+        ),
+        "They bought red apples, green bananas and a single orange.",
+        "He wrote the report, with style and confidence.",
+        "He tried and failed, and tried again.",
+        "If this fails, try again and log the error.",
+        "Because it was late, we deployed and monitored the change.",
+    ],
+)
+def test_oxford_comma_ignores_non_list_clauses(
+    concordat_vale: Valedate, sentence: str
+) -> None:
+    """Sentences outside the narrow list pattern should not trigger."""
+    diags = concordat_vale.lint(sentence)
+
+    assert all(diag.check != "concordat.OxfordComma" for diag in diags), (
+        "expected no OxfordComma diagnostics for exempt sentences"
     )
