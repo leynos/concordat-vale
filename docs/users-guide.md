@@ -297,3 +297,7 @@ without leaving merge conflicts in the generated Tengo source.
     --source .config/common-acronyms \
     --dest .vale/styles/config/scripts/AcronymsFirstUse.tengo
   ```
+
+Contributors who change these documents need `mdtablefix` and
+`markdownlint-cli2` for `make fmt`; see the
+[developers' guide](developers-guide.md) for the install commands.
