@@ -45,7 +45,7 @@ def test_prefer_our_allows_latin_suffix_derivatives(
     """Latinate derivatives like elaborate or honorary should pass."""
     text = textwrap.dedent(
         """\
-        Their elaborate collaboration transformed the laboratory's workflows.
+        Their color elaborate collaboration transformed the laboratory's workflows.
         The most laborious phase still finished on time.
         Honorary collaborators described the humorous and glamorous motifs.
         They also logged the odorous and vigorous failures.
