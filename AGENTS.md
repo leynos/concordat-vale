@@ -34,6 +34,11 @@
 
 When implementing changes, adhere to the following testing procedures:
 
+- **Running the suite:** `make test` runs every test, including the style tests
+  that drive a real `vale` binary, so `vale` must be on `PATH`. CI installs the
+  release pinned in `.github/workflows/tests.yml` and checks its SHA-256; use
+  that version locally to match.
+
 - **New Functionality:**
   - Implement unit tests covering all new code units (functions, components,
     classes). Implement tests **before** implementing the unit.
