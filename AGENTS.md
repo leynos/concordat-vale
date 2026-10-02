@@ -213,3 +213,14 @@ Additional docs:
 
 - [Scripting Standards](docs/scripting-standards.md) - Guidance for writing
   robust scripts
+
+## Markdown formatting
+
+`make fmt` and `make check-fmt` run `mdtablefix` 0.6.1 or later over the
+Markdown files Git tracks plus untracked files it does not ignore, with
+`--wrap --renumber --breaks --ellipsis --fences`. Install it with
+`cargo binstall --no-confirm mdtablefix@0.6.1` or
+`cargo install --locked mdtablefix@0.6.1`. `make fmt` then runs
+`markdownlint-cli2 --fix`, and the `markdownlint` workflow lints `**/*.md` with
+the pinned markdownlint-cli2-action. Concordat's `markdown-formatting-baseline`
+rule audits this wiring.

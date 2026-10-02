@@ -17,6 +17,9 @@ dev = [
 ]
 
 [tool.ruff]
+# Markdown is formatted by mdtablefix; with `preview`, ruff would also format
+# the Python blocks inside it and disagree with the document's own wrapping.
+extend-exclude = ["*.md", "*.mdc"]
 line-length = 88
 target-version = "py313"
 
