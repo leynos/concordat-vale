@@ -12,8 +12,9 @@ repository is covered in the [usage guide](users-guide.md).
   then runs `markdownlint-cli2 --fix "**/*.md"`.
 - `make check-fmt` runs the same `mdtablefix` command with `--check` in place of
   `--in-place`, and fails when any file would change.
-- `make markdownlint` runs `markdownlint-cli2 '**/*.md'` and then the spelling
-  gate.
+- `make markdownlint` runs `markdownlint-cli2 '**/*.md'`. It does not run
+  Vale; run `make vale` separately for the Vale checks, including the spelling
+  rules.
 - `.markdownlint-cli2.jsonc` carries the canonical markdownlint configuration.
   Keep its `config` entries and `ignores` globs; add repository-specific rules
   or globs beside them.
@@ -34,5 +35,6 @@ missing, and Make then reads the leading `--` of `$(MDLINT) --fix` as recipe
 prefix characters, so `make fmt` could report success without linting. With the
 literal name, a missing tool stops Make with
 `'markdownlint-cli2' is required, but not installed`.
-`tests/test_makefile_markdownlint.py` runs the real Makefile with a controlled
-`PATH` to hold both the missing-tool and present-tool paths.
+`tests/test_makefile_markdownlint.py` runs `make markdownlint` and `make fmt`
+from the real Makefile with a controlled `PATH` of recording stubs, to hold
+both the missing-tool and present-tool paths.
