@@ -1,4 +1,4 @@
-MDLINT ?= $(shell which markdownlint-cli2)
+MDLINT ?= markdownlint-cli2
 NIXIE ?= $(shell which nixie)
 TOOLS = ruff ty $(MDLINT) $(MDTABLEFIX) $(NIXIE) uv
 VENV_TOOLS = pytest
