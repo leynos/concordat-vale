@@ -15,6 +15,9 @@ import yaml
 
 WORKFLOW = Path(".github/workflows/tests.yml")
 TIMEOUT_MINUTES = 15
+CONCURRENCY_GROUP = (
+    "${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}"
+)
 CHECKSUM_COMMAND = 'echo "${VALE_SHA256}  ${archive}" | sha256sum -c -'
 
 
@@ -153,11 +156,8 @@ def test_superseded_pull_request_runs_are_cancelled_and_pushes_are_not() -> None
     """
     concurrency = _workflow()["concurrency"]
 
-    assert "github.event.pull_request.number" in concurrency["group"], (
-        "runs must be grouped per pull request"
-    )
-    assert "github.run_id" in concurrency["group"], (
-        "push runs must not share a group, so none is cancelled"
+    assert concurrency["group"] == CONCURRENCY_GROUP, (
+        "pull-request runs must share a group per number; push runs a group each"
     )
     assert concurrency["cancel-in-progress"] == (
         "${{ github.event_name == 'pull_request' }}"
