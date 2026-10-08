@@ -14,19 +14,24 @@ from pathlib import Path
 import yaml
 
 WORKFLOW = Path(".github/workflows/tests.yml")
+TIMEOUT_MINUTES = 15
 CHECKSUM_COMMAND = 'echo "${VALE_SHA256}  ${archive}" | sha256sum -c -'
 
 
-class _Step(typ.TypedDict, total=False):
-    """The step keys these tests read."""
-
-    name: str
-    uses: str
-    run: str
-    env: dict[str, str]
-
-
-# Functional syntax, because `timeout-minutes` is not a valid identifier.
+# Functional syntax, because `with` is a keyword and `cancel-in-progress` and
+# `timeout-minutes` are not valid identifiers.
+_Step = typ.TypedDict(
+    "_Step",
+    {
+        "name": str,
+        "uses": str,
+        "run": str,
+        "env": dict[str, str],
+        "with": dict[str, object],
+    },
+    total=False,
+)
+_Concurrency = typ.TypedDict("_Concurrency", {"group": str, "cancel-in-progress": str})
 _Job = typ.TypedDict("_Job", {"timeout-minutes": int, "steps": list[_Step]})
 
 
@@ -38,6 +43,7 @@ class _Workflow(typ.TypedDict, total=False):
     """
 
     permissions: dict[str, str]
+    concurrency: _Concurrency
     jobs: dict[str, _Job]
 
 
@@ -133,6 +139,37 @@ def test_the_job_has_a_timeout_and_read_only_permissions() -> None:
 
     assert isinstance(_job()["timeout-minutes"], int), "the job needs a timeout"
     assert workflow["permissions"] == {"contents": "read"}, "keep the token read-only"
+
+
+def test_the_job_timeout_is_fifteen_minutes() -> None:
+    """The ceiling is the documented 15 minutes, so removing or raising it fails."""
+    assert _job()["timeout-minutes"] == TIMEOUT_MINUTES, "keep the 15 minute ceiling"
+
+
+def test_superseded_pull_request_runs_are_cancelled_and_pushes_are_not() -> None:
+    """Concurrency groups runs per pull request and cancels only pull-request runs.
+
+    Cancelling a push run would leave `main` without a result for its commit.
+    """
+    concurrency = _workflow()["concurrency"]
+
+    assert "github.event.pull_request.number" in concurrency["group"], (
+        "runs must be grouped per pull request"
+    )
+    assert "github.run_id" in concurrency["group"], (
+        "push runs must not share a group, so none is cancelled"
+    )
+    assert concurrency["cancel-in-progress"] == (
+        "${{ github.event_name == 'pull_request' }}"
+    ), "only pull-request runs may be cancelled"
+
+
+def test_checkout_does_not_persist_credentials() -> None:
+    """The checkout must not leave the token in the git config for later steps."""
+    _, step = _step("Check out repository")
+
+    assert step["uses"].startswith("actions/checkout@"), "expected the checkout action"
+    assert step["with"]["persist-credentials"] is False, "drop persisted credentials"
 
 
 def test_every_action_is_pinned_to_a_commit() -> None:
