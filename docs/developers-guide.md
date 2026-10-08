@@ -38,3 +38,23 @@ literal name, a missing tool stops Make with
 `tests/test_makefile_markdownlint.py` runs `make markdownlint` and `make fmt`
 from the real Makefile with a controlled `PATH` of recording stubs, to hold
 both the missing-tool and present-tool paths.
+
+## Running the tests
+
+`make test` runs every test with `pytest -n auto`. The style tests under
+`tests/styles` drive a real `vale` binary through valedate and provide no stub,
+so `vale` must be on `PATH`; without it they error with
+`ValeBinaryNotFoundError`.
+
+CI installs the Vale release pinned in `.github/workflows/tests.yml`
+(`VALE_VERSION` and `VALE_SHA256`, currently 3.24.0) and checks the archive's
+SHA-256 before unpacking it, so a moved or replaced download fails the job
+instead of changing what the tests accept. Install the same version locally to
+match. To change the pin, update both values together, from the digest GitHub
+publishes for the `Linux_64-bit` archive.
+
+`tests/test_tests_workflow_wiring.py` parses the workflow as YAML and holds the
+wiring: `make test` is the last step, Vale is pinned by version and digest and
+checked before it is unpacked and put on `PATH`, the push and pull request
+triggers, the timeout, the read-only token, and the commit pins on every
+action. It needs PyYAML, a development dependency.

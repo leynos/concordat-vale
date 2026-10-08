@@ -13,6 +13,7 @@ dev = [
     "pytest-xdist",
     "pytest-timeout",
     "ruff",
+    "pyyaml",
     "valedate==0.1.0b1",
 ]
 
