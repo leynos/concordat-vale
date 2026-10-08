@@ -17,30 +17,54 @@ WORKFLOW = Path(".github/workflows/tests.yml")
 CHECKSUM_COMMAND = 'echo "${VALE_SHA256}  ${archive}" | sha256sum -c -'
 
 
-def _workflow() -> dict[str, typ.Any]:
+class _Step(typ.TypedDict, total=False):
+    """The step keys these tests read."""
+
+    name: str
+    uses: str
+    run: str
+    env: dict[str, str]
+
+
+# Functional syntax, because `timeout-minutes` is not a valid identifier.
+_Job = typ.TypedDict("_Job", {"timeout-minutes": int, "steps": list[_Step]})
+
+
+class _Workflow(typ.TypedDict, total=False):
+    """The top-level workflow keys these tests read.
+
+    YAML 1.1 reads the bare key `on` as the boolean True, so the triggers are
+    reached through `_triggers` rather than a field here.
+    """
+
+    permissions: dict[str, str]
+    jobs: dict[str, _Job]
+
+
+def _workflow() -> _Workflow:
     """Return the parsed workflow."""
-    return yaml.safe_load(WORKFLOW.read_text())
+    return typ.cast("_Workflow", yaml.safe_load(WORKFLOW.read_text()))
 
 
-def _triggers() -> dict[str, typ.Any]:
+def _triggers() -> dict[str, object]:
     """Return the `on:` mapping; YAML 1.1 reads the bare key `on` as True."""
-    workflow = _workflow()
+    workflow = typ.cast("dict[str | bool, dict[str, object]]", _workflow())
     return workflow["on"] if "on" in workflow else workflow[True]
 
 
-def _job() -> dict[str, typ.Any]:
+def _job() -> _Job:
     """Return the single job that runs the suite."""
     jobs = _workflow()["jobs"]
     assert list(jobs) == ["tests"], f"expected one `tests` job, found {list(jobs)}"
     return jobs["tests"]
 
 
-def _steps() -> list[dict[str, typ.Any]]:
+def _steps() -> list[_Step]:
     """Return the job's steps in order."""
     return _job()["steps"]
 
 
-def _step(name: str) -> tuple[int, dict[str, typ.Any]]:
+def _step(name: str) -> tuple[int, _Step]:
     """Return the index and body of the step called `name`."""
     for index, step in enumerate(_steps()):
         if step.get("name") == name:
