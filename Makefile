@@ -2,8 +2,12 @@ MDLINT ?= markdownlint-cli2
 NIXIE ?= $(shell which nixie)
 TOOLS = ruff ty $(MDLINT) $(MDTABLEFIX) $(NIXIE) uv
 VENV_TOOLS = pytest
-UV_ENV = UV_CACHE_DIR=.uv-cache UV_TOOL_DIR=.uv-tools
-STILYAGI_SOURCE ?= https://github.com/leynos/stilyagi.git@v0.1.0
+# Every uv call goes through the vendored helper, which cleans the environment,
+# uses the global uv cache, runs offline first and goes online at most once. See
+# https://github.com/leynos/shared-actions/tree/main/uv_gate for the contract.
+UV_GATE ?= python3 scripts/uv_gate.py
+# Commit of the stilyagi v0.1.0 tag; a pin must be a full commit.
+STILYAGI_SOURCE ?= git+https://github.com/leynos/stilyagi.git@dff60b0c46c5b2c1b322dd039e7fc0f488e1db7b
 PYTHON ?= python3
 VALE ?= vale
 VALE_CONFIG ?= .vale.ini
@@ -21,7 +25,7 @@ MDTABLEFIX ?= mdtablefix
 MDTABLEFIX_SELECT = --git --include-untracked
 MDTABLEFIX_RULES = --wrap --renumber --breaks --ellipsis --fences
 
-.PHONY: help all clean build build-release lint fmt check-fmt \
+.PHONY: help all clean build prepare build-release lint fmt check-fmt \
         markdownlint nixie test typecheck vale-archive vale-sync vale \
         $(TOOLS) $(VENV_TOOLS)
 
@@ -29,11 +33,10 @@ MDTABLEFIX_RULES = --wrap --renumber --breaks --ellipsis --fences
 
 all: build check-fmt test typecheck
 
-.venv: pyproject.toml
-	$(UV_ENV) uv venv --clear
+prepare: uv ## Install the locked development environment, offline first
+	$(UV_GATE) prepare --group dev
 
-build: uv .venv ## Build virtual-env and install deps
-	$(UV_ENV) uv sync --group dev
+build: prepare ## Build virtual-env and install deps
 
 build-release: ## Build artefacts (sdist & wheel)
 	python -m build --sdist --wheel
@@ -52,7 +55,7 @@ define ensure_tool
 endef
 
 define ensure_tool_venv
-	$(UV_ENV) uv run which $(1) >/dev/null 2>&1 || { \
+	$(UV_GATE) run --group dev -- which $(1) >/dev/null 2>&1 || { \
 	  printf "Error: '%s' is required in the virtualenv, but is not installed\n" "$(1)" >&2; \
 	  exit 1; \
 	}
@@ -94,18 +97,18 @@ nixie: $(NIXIE) ## Validate Mermaid diagrams
 	$(NIXIE) --no-sandbox
 
 vale-archive: build ## Build the dev Concordat archive for local linting
-	$(UV_ENV) uvx --from $(STILYAGI_SOURCE) stilyagi zip \
+	$(UV_GATE) tool --from $(STILYAGI_SOURCE) -- stilyagi zip \
 	  --archive-version dev --force
 
 vale-sync: vale-archive ## Sync Concordat into .vale/styles
 	$(VALE) sync --config $(VALE_CONFIG)
 
 vale: vale-sync ## Lint docs with Vale after syncing and patching acronyms
-	$(UV_ENV) uv run --script $(ACRONYM_SCRIPT)
+	$(UV_GATE) run --group dev -- python $(ACRONYM_SCRIPT)
 	$(VALE) --config $(VALE_CONFIG) --minAlertLevel suggestion $(VALE_TARGETS)
 
 test: build uv $(VENV_TOOLS) ## Run tests
-	$(UV_ENV) uv run pytest -v -n auto
+	$(UV_GATE) run --group dev -- pytest -v -n auto
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
