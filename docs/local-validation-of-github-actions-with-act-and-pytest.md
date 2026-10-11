@@ -26,9 +26,9 @@ command interception is intentionally avoided; containers execute in isolation.
      pytest harness) run with escalated permissions. In this repo, use
      `ACT_WORKFLOW_TESTS=1 sudo -E make test` to exercise the workflow harness.
   3. The release workflow redirects the project virtualenv to `/tmp` when it
-     detects it is running under `act`, and `uv` keeps its cache in the
-     container's global location (the vendored `scripts/uv_gate.py` helper owns
-     that choice), so the container no longer leaves root-owned files in the
+     detects it is running under `act`, and `uv` keeps its cache in its
+     default location inside the container (the workflow no longer sets a
+     cache path), so the container no longer leaves root-owned files in the
      workspace. If residue from older runs
      remains, remove the `.venv` or `.uv-*` directories once, then re-run.
 - Optional but recommended: pin an image to reduce drift:
