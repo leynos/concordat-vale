@@ -4,6 +4,11 @@
 
 - Prerequisites: `uv` 0.4.0 or newer (for `uvx`); install `uv` once and reuse
   the bundled `uvx` shim.
+- `make vale-archive` runs `stilyagi` through the vendored `scripts/uv_gate.py`
+  helper, which works offline first. It fetches a Git tool that is not cached
+  yet only with `uv` 0.11.28 or newer (older versions do not say why the
+  offline fetch failed). With an older `uv`, run the `uvx` command below once
+  to warm the cache, or upgrade.
 - Export `STILYAGI_SOURCE=https://github.com/leynos/stilyagi.git@v0.1.0` once
   and reuse `${STILYAGI_SOURCE}` in the commands below to avoid duplication.
 - Run `uvx --from ${STILYAGI_SOURCE} stilyagi zip`
