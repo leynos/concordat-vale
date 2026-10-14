@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import typing as typ
 
+import pytest
+
 if typ.TYPE_CHECKING:
+    import collections.abc as cabc
+
     from valedate import Valedate, ValeDiagnostic
 
 
@@ -91,3 +95,111 @@ def test_acronyms_first_use_ignores_joined_acronyms_split_by_slash(
     )
 
     assert diags == [], "expected TLS/SSL fragments to be ignored"
+
+
+@pytest.mark.parametrize(
+    ("prefix", "expected_span"),
+    [
+        pytest.param("a" * 2048, (2050, 2053), id="plain2048"),
+        pytest.param("[" * 2048, (2050, 2053), id="brackets2048"),
+        pytest.param("a" * 4096, (4098, 4101), id="plain4096"),
+        pytest.param("[" * 4096, (4098, 4101), id="brackets4096"),
+    ],
+)
+def test_acronyms_first_use_completes_dense_prefixes(
+    concordat_vale: Valedate,
+    prefix: str,
+    expected_span: tuple[int, int],
+) -> None:
+    """Dense unmatched brackets must retain a reachable first-use warning."""
+    diags = _acronym_diagnostics(concordat_vale, f"{prefix} NASA")
+
+    actual = [(diag.match, diag.severity, diag.line, diag.span) for diag in diags]
+    assert actual == [("NASA", "warning", 1, expected_span)], (
+        "the dense prefix must finish without changing the NASA diagnostic"
+    )
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        pytest.param(
+            "[[ <https://example.org/ESA> NASA",
+            id="later-autolink-after-exhausted-search",
+        ),
+        pytest.param("[[ `] ESA` NASA", id="closing-bracket-masked-in-code"),
+        pytest.param(
+            "[[ `] ESA` label](https://example.org/JAXA) NASA",
+            id="later-eligible-closing-bracket",
+        ),
+        pytest.param(
+            "[label](https://example.org/JAXA_(ESA)) NASA",
+            id="nested-parentheses-in-link-target",
+        ),
+    ],
+)
+def test_acronyms_first_use_preserves_link_masking(
+    concordat_vale: Valedate,
+    text: str,
+) -> None:
+    """Link and code masking must leave the outside acronym reachable."""
+    diags = _acronym_diagnostics(concordat_vale, text)
+
+    start = text.index("NASA") + 1
+    actual = [(diag.match, diag.severity, diag.line, diag.span) for diag in diags]
+    assert actual == [("NASA", "warning", 1, (start, start + 3))], (
+        "only the outside NASA must be reported at its original ASCII span"
+    )
+
+
+def test_acronyms_first_use_preserves_prior_definitions(
+    concordat_vale: Valedate,
+) -> None:
+    """An earlier expansion must continue to silence subsequent uses."""
+    diags = _acronym_diagnostics(
+        concordat_vale,
+        "National Aeronautics and Space Administration (NASA) uses NASA.",
+    )
+
+    assert diags == [], "the prior NASA expansion must remain effective"
+
+
+def test_acronyms_first_use_reports_only_the_first_repeated_use(
+    concordat_vale: Valedate,
+) -> None:
+    """Repeated undefined acronyms must retain the first occurrence's span."""
+    diags = _acronym_diagnostics(concordat_vale, "NASA revisits NASA.")
+
+    actual = [(diag.match, diag.severity, diag.line, diag.span) for diag in diags]
+    assert actual == [("NASA", "warning", 1, (1, 4))], (
+        "only the first undefined NASA must be reported"
+    )
+
+
+def test_acronyms_first_use_preserves_warning_before_later_definition(
+    concordat_vale: Valedate,
+) -> None:
+    """A later expansion must not erase an earlier first-use warning."""
+    diags = _acronym_diagnostics(
+        concordat_vale,
+        "NASA meets National Aeronautics and Space Administration (NASA).",
+    )
+
+    actual = [(diag.match, diag.severity, diag.line, diag.span) for diag in diags]
+    assert actual == [("NASA", "warning", 1, (1, 4))], (
+        "the earlier undefined NASA must retain its original diagnostic"
+    )
+
+
+def test_acronyms_first_use_records_span_after_multibyte_prefix(
+    concordat_vale: Valedate,
+    record_property: cabc.Callable[[str, object], None],
+) -> None:
+    """A multibyte prefix must retain the measured diagnostic span."""
+    diags = _acronym_diagnostics(concordat_vale, "Élan NASA")
+
+    actual = [(diag.match, diag.severity, diag.line, diag.span) for diag in diags]
+    assert actual == [("NASA", "warning", 1, (6, 9))], (
+        "the multibyte prefix must preserve the measured NASA diagnostic span"
+    )
+    record_property("vale_multibyte_span", diags[0].span)
