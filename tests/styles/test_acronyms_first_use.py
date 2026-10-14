@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 import typing as typ
 
 import pytest
@@ -203,3 +204,52 @@ def test_acronyms_first_use_records_span_after_multibyte_prefix(
         "the multibyte prefix must preserve the measured NASA diagnostic span"
     )
     record_property("vale_multibyte_span", diags[0].span)
+
+
+_EXHAUSTION_FRAGMENTS = {
+    "open": "[",
+    "plain": "word",
+    "code": "`]`",
+    "autolink": "<https://example.org/ESA>",
+}
+
+
+@pytest.mark.parametrize(
+    "fragment_names",
+    [
+        pytest.param(fragment_names, id="-".join(fragment_names))
+        for length in range(1, 4)
+        for fragment_names in itertools.product(_EXHAUSTION_FRAGMENTS, repeat=length)
+        if "open" in fragment_names
+    ],
+)
+def test_acronyms_first_use_preserves_generated_exhaustion_layouts(
+    concordat_vale: Valedate,
+    fragment_names: tuple[str, ...],
+) -> None:
+    """Exhausted searches must preserve full diagnostics against real controls."""
+    fragments = tuple(_EXHAUSTION_FRAGMENTS[name] for name in fragment_names)
+    generated = " ".join(fragments)
+    control_segment = " ".join(
+        "x" if fragment == "[" else fragment for fragment in fragments
+    )
+    prefix = "[label](https://example.org/ESA) "
+    suffix = " <https://example.org/JAXA> NASA"
+    candidate = prefix + generated + suffix
+    control = prefix + control_segment + suffix
+
+    candidate_diags = list(concordat_vale.lint(candidate))
+    control_diags = list(concordat_vale.lint(control))
+
+    start = len(prefix) + len(generated) + len(suffix) - len("NASA") + 1
+    expected = [
+        ("concordat.AcronymsFirstUse", "NASA", "warning", 1, (start, start + 3))
+    ]
+    actual = [
+        (diag.check, diag.match, diag.severity, diag.line, diag.span)
+        for diag in candidate_diags
+    ]
+    assert actual == expected, "only the outside NASA must retain its exact warning"
+    assert candidate_diags == control_diags, (
+        "replacing only generated openers must preserve all diagnostic metadata"
+    )
