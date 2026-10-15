@@ -159,6 +159,20 @@ workflow. The job resolves the correct archive version, installs the UV tool
 chain, packages the styles with `stilyagi zip --archive-version <version>`, and
 publishes the resulting ZIP straight to the matching release.
 
+### Changes prepared for 0.3.0
+
+The next release includes two changes since the published 0.2.0 style archive:
+
+- The Oxford comma rule matches single-word lists case-insensitively and
+  excludes clauses such as `X, with Y and Z`, reducing unrelated warnings.
+- The acronym first-use rule caches exhausted closing-bracket searches. Long
+  unmatched `[` prefixes no longer cause the previous Vale execution failure;
+  later autolinks stay masked, and unexpanded acronyms outside them still warn.
+
+These changes remain in the development archive until the versioned release is
+published. The release must use the accepted tagged source and its verified
+style ZIP before consumers adopt it.
+
 ### Workflow overview
 
 1. Trigger: either publishing a GitHub release (`release.published`) or a
