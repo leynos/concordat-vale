@@ -259,6 +259,12 @@ Running the helper script immediately after `vale sync` ensures the packaged
 `AcronymsFirstUse.tengo` always includes the repository-specific acronyms
 before linting begins.
 
+The current development style handles long unmatched `[` prefixes without the
+previous Vale execution failure. Acronyms in later autolinks remain masked,
+while unexpanded acronyms outside them still receive first-use warnings. This
+behaviour is available in the development archive; consumers receive it only
+after a versioned style release containing the fix is published.
+
 #### Project-specific acronyms
 
 The `.config/common-acronyms` file stores one acronym per line. Lines beginning

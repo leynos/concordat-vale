@@ -356,6 +356,9 @@ for inline_pos < n {
   inline_pos += 1
 }
 
+// Ignore ranges only grow, so an exhausted closing-bracket search cannot
+// become eligible later. Keep the outer pass running to mask later autolinks.
+closing_search_exhausted := false
 link_pos := 0
 for link_pos < n {
   next_link := advance_past_ignore(link_pos)
@@ -366,7 +369,7 @@ for link_pos < n {
 
   ch_link := s[link_pos:link_pos+1]
 
-  if ch_link == "[" {
+  if ch_link == "[" && !closing_search_exhausted {
     close := link_pos + 1
     for close < n {
       next_close := advance_past_ignore(close)
@@ -379,6 +382,10 @@ for link_pos < n {
         break
       }
       close += 1
+    }
+
+    if close >= n {
+      closing_search_exhausted = true
     }
 
     if close < n && close+1 < n && s[close+1:close+2] == "(" {

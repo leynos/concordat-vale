@@ -58,3 +58,32 @@ wiring: `make test` is the last step, Vale is pinned by version and digest and
 checked before it is unpacked and put on `PATH`, the push and pull request
 triggers, the timeout, the read-only token, and the commit pins on every
 action. It needs PyYAML, a development dependency.
+
+## Acronym link-mask regressions
+
+`styles/config/scripts/AcronymsFirstUse.tengo` is the canonical source of the
+first-use rule. Its link-mask pass remembers when an opening bracket search
+reaches the end without an eligible closing bracket. Ignored ranges only grow,
+so later masking cannot introduce a closing bracket. The outer pass continues
+to mask later autolinks; successful links and nested targets retain their
+existing handling.
+
+The regression module `tests/styles/test_acronyms_first_use.py` covers plain
+and unmatched-bracket prefixes at 2,048 and 4,096 characters, code and link
+masking, definitions, first-use warnings, and exact diagnostic spans. Before
+the change, the 4,096-bracket case failed with Vale exit status 2 under both
+Vale 3.22.0 and the owning CI pin, 3.24.0; the other 17 cases passed. This is
+controlled regression evidence, not identification of a failing consumer guide.
+Run the focused module through the repository's environment helper:
+
+```sh
+python3 scripts/uv_gate.py run --group dev -- pytest -v -n 0 tests/styles/test_acronyms_first_use.py
+```
+
+Validate with the pinned 3.24.0 binary for this repository and separately with
+3.22.0 for the consumer compatibility contract. Neither check replaces the
+complete `make test` suite. A merged fix still needs an approved versioned
+style release and verified archive before consumer adoption. Review the full
+package diff: current main also includes previously merged mixed-case and
+composite-token handling absent from the published v0.1.0 archive. Real
+consumer guide inspection remains a separate check after adoption.
