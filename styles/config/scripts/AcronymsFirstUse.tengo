@@ -122,10 +122,13 @@ n := len(s)
 comment_ranges := []
 ignore_ranges := []
 ignore_ranges_sorted := true
+miss_begin := 0
+miss_end := 0
 
 add_ignore_range := func(begin, end) {
   ignore_ranges = append(ignore_ranges, {"begin": begin, "end": end})
   ignore_ranges_sorted = false
+  miss_end = 0
 }
 
 sort_ignore_ranges := func() {
@@ -150,11 +153,18 @@ sort_ignore_ranges := func() {
 }
 
 ignore_range_end := func(idx) {
+  // Reuse only misses within the same search gap; appending a mask invalidates it.
+  if idx >= miss_begin && idx < miss_end {
+    return -1
+  }
+
   sort_ignore_ranges()
 
   total := len(ignore_ranges)
   left := 0
   right := total - 1
+  gap_begin := 0
+  gap_end := n
 
   for left <= right {
     mid := (left + right) / 2
@@ -165,12 +175,20 @@ ignore_range_end := func(idx) {
     }
 
     if idx < rng["begin"] {
+      if rng["begin"] < gap_end {
+        gap_end = rng["begin"]
+      }
       right = mid - 1
     } else {
+      if rng["end"] > gap_begin {
+        gap_begin = rng["end"]
+      }
       left = mid + 1
     }
   }
 
+  miss_begin = gap_begin
+  miss_end = gap_end
   return -1
 }
 
