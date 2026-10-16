@@ -159,19 +159,33 @@ workflow. The job resolves the correct archive version, installs the UV tool
 chain, packages the styles with `stilyagi zip --archive-version <version>`, and
 publishes the resulting ZIP straight to the matching release.
 
-### Changes prepared for 0.3.0
+### Changes prepared for 0.3.1
 
-The next release includes two changes since the published 0.2.0 style archive:
+The next patch release improves acronym first-use scanning on long Markdown
+inputs with many ignored spans, preserving diagnostics and Vale's two-second
+script budget:
+
+- Cache known gaps between ignored spans, invalidating the cache whenever a
+  new span is appended. Unmasked text within a cached gap is still scanned.
+- Sort only newly appended ignored spans into the existing sorted prefix,
+  preserving the order of spans with equal starts.
+- Check cached gaps in the scanning helper, avoiding a redundant nested lookup
+  without changing its cursor or warning behaviour.
+
+Regression coverage includes a byte-exact long guide and bounded property tests
+that run the real Vale rule against an independent complete-diagnostic oracle.
+These changes remain prepared until the versioned release and its style ZIP are
+published and verified; consumer adoption is separate follow-up work.
+
+### Changes published in 0.3.0
+
+The 0.3.0 release included two changes since the 0.2.0 style archive:
 
 - The Oxford comma rule matches single-word lists case-insensitively and
   excludes clauses such as `X, with Y and Z`, reducing unrelated warnings.
 - The acronym first-use rule caches exhausted closing-bracket searches. Long
   unmatched `[` prefixes no longer cause the previous Vale execution failure;
   later autolinks stay masked, and unexpanded acronyms outside them still warn.
-
-These changes remain in the development archive until the versioned release is
-published. The release must use the accepted tagged source and its verified
-style ZIP before consumers adopt it.
 
 ### Workflow overview
 
