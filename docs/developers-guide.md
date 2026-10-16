@@ -107,8 +107,21 @@ project allow-map injection interface remain separate concerns.
 The canonical lookup caches only the half-open gap established by a failed
 binary search. Each left branch bounds the gap above by that range's start;
 each right branch bounds it below by that range's end. Every index inside those
-bounds follows the same comparisons and also misses. Hits and sorting retain
-their original handling, and adding any range invalidates the cache.
+bounds follows the same comparisons and also misses. Hits retain their original
+handling, and adding any range invalidates the cache.
+
+The scanning helper checks the cached miss before calling the slow lookup. A
+hit returns the original cursor, not the gap's end: unmasked characters still
+require normal lexical processing. This avoids the nested lookup call while
+preserving its original miss result and cursor behaviour.
+
+Sorting remembers the previously sorted prefix and inserts only newly appended
+ranges into it. The first range is trivially sorted; the initial sort still
+inserts every later range, including initial fence masks. Appends preserve the
+sorted prefix, and the strict comparison preserves equal-start ordering. This
+removes repeated scans of that prefix without changing the resulting stable
+order. It complements the miss-gap cache; prefix sorting alone did not resolve
+the earlier measured workload.
 
 `tests/fixtures/acronym-real-guide.txt` preserves the original 286,636-byte
 `docs/concordat-design.md` consumer workload used in the H26-REAL diagnosis.
@@ -122,6 +135,19 @@ two-second deadline failure with Vale 3.23.0 before the cache change; this does
 not establish identical historical consumer invocation or general timing
 guarantees. Runtime exceptions retain their original type and status; the
 regression adds the harness's captured stderr as a diagnostic note.
+
+`tests/styles/test_acronym_mask_properties.py` checks the real rule against
+generated semantic segments. Its private records and builders belong only to
+that module; the oracle derives complete first-visible-use warnings from the
+declared tokens, definitions, and line offsets, without parsing Markdown or
+modelling interval searches. Hypothesis varies up to 12 segments from seven
+closed mask forms, prose prefixes, and definitions, including repeated tokens,
+multibyte columns, rewind-producing brackets, and overlapping inline/link
+syntax. The ordinary test gate runs 64 generated examples plus two explicit
+examples. Each example uses a fresh native sandbox. The Hypothesis wall-clock
+deadline is disabled for subprocess and scheduling overhead; Vale's internal
+two-second script budget and pytest's timeout remain unchanged. This bounded
+grammar checks masking semantics, not arbitrary Markdown or a timing claim.
 
 Run the new module with the existing regression corpus through the environment
 helper, using the approved Vale binary on `PATH`:

@@ -122,6 +122,7 @@ n := len(s)
 comment_ranges := []
 ignore_ranges := []
 ignore_ranges_sorted := true
+sorted_ignore_prefix := 1
 miss_begin := 0
 miss_end := 0
 
@@ -137,7 +138,7 @@ sort_ignore_ranges := func() {
   }
 
   total := len(ignore_ranges)
-  for i := 1; i < total; i += 1 {
+  for i := sorted_ignore_prefix; i < total; i += 1 {
     rng := ignore_ranges[i]
     j := i - 1
 
@@ -149,15 +150,11 @@ sort_ignore_ranges := func() {
     ignore_ranges[j+1] = rng
   }
 
+  sorted_ignore_prefix = total
   ignore_ranges_sorted = true
 }
 
 ignore_range_end := func(idx) {
-  // Reuse only misses within the same search gap; appending a mask invalidates it.
-  if idx >= miss_begin && idx < miss_end {
-    return -1
-  }
-
   sort_ignore_ranges()
 
   total := len(ignore_ranges)
@@ -193,6 +190,11 @@ ignore_range_end := func(idx) {
 }
 
 advance_past_ignore := func(idx) {
+  // Reuse only misses within the same search gap; appending a mask invalidates it.
+  if idx >= miss_begin && idx < miss_end {
+    return idx
+  }
+
   skip := ignore_range_end(idx)
   if skip == -1 {
     return idx

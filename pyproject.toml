@@ -9,6 +9,7 @@ authors = [{ name = "Payton McIntosh", email = "pmcintosh@df12.net" }]
 
 [dependency-groups]
 dev = [
+    "hypothesis>=6,<7",
     "pytest",
     "pytest-xdist",
     "pytest-timeout",
