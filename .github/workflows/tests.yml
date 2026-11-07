@@ -44,5 +44,8 @@ jobs:
           tar -xzf "${archive}" -C "${vale_dir}" vale
           echo "${vale_dir}" >> "${GITHUB_PATH}"
 
+      - name: Check docstring coverage
+        run: make interrogate
+
       - name: Run the tests
         run: make test

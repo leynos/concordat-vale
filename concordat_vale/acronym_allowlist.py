@@ -85,6 +85,7 @@ def update_allow_map(
 
 
 def _collect_allow_entries(lines: cabc.Iterable[str]) -> set[str]:
+    """Return the token of every allow-map entry found in ``lines``."""
     entries: set[str] = set()
     for line in lines:
         match = ALLOW_ENTRY.match(line)
@@ -94,6 +95,7 @@ def _collect_allow_entries(lines: cabc.Iterable[str]) -> set[str]:
 
 
 def _remove_managed_block(lines: list[str]) -> None:
+    """Delete the managed comment and its entries, plus a following blank line."""
     start = _find_comment_index(lines)
     if start is None:
         return
@@ -112,6 +114,7 @@ def _remove_managed_block(lines: list[str]) -> None:
 
 
 def _find_comment_index(lines: list[str]) -> int | None:
+    """Return the index of the managed comment line, or ``None`` when absent."""
     for idx, line in enumerate(lines):
         if line.strip() == MANAGED_COMMENT:
             return idx
@@ -119,6 +122,7 @@ def _find_comment_index(lines: list[str]) -> int | None:
 
 
 def _build_block(acronyms: cabc.Sequence[str]) -> list[str]:
+    """Render the managed comment, one allow entry per acronym and a blank line."""
     block = [f"  {MANAGED_COMMENT}"]
     block.extend(f'  "{token}": true,' for token in acronyms)
     block.append("")
@@ -126,6 +130,15 @@ def _build_block(acronyms: cabc.Sequence[str]) -> list[str]:
 
 
 def _find_insertion_index(lines: list[str]) -> int:
+    """Return the line index for the managed block.
+
+    That is the Roman marker's line, or else the allow map's closing brace.
+
+    Raises
+    ------
+    AcronymAllowlistError
+        If neither the marker nor a closing brace is present.
+    """
     for idx, line in enumerate(lines):
         if line.strip() == ROMAN_MARKER:
             return idx
