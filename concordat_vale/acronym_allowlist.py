@@ -17,7 +17,7 @@ VALID_TOKEN = re.compile(r"^[0-9A-Z]+$")
 
 
 class AcronymAllowlistError(RuntimeError):
-    """Raised when project acronyms cannot be parsed."""
+    """Raised when acronyms cannot be parsed or the allow map cannot be updated."""
 
 
 @dc.dataclass(frozen=True)
@@ -95,7 +95,11 @@ def _collect_allow_entries(lines: cabc.Iterable[str]) -> set[str]:
 
 
 def _remove_managed_block(lines: list[str]) -> None:
-    """Delete the managed comment and its entries, plus a following blank line."""
+    """Delete the managed comment and the allow entries that follow it.
+
+    A blank line that ends the entries is deleted with them when present;
+    ``lines`` is left unchanged when the comment is absent.
+    """
     start = _find_comment_index(lines)
     if start is None:
         return
@@ -132,12 +136,13 @@ def _build_block(acronyms: cabc.Sequence[str]) -> list[str]:
 def _find_insertion_index(lines: list[str]) -> int:
     """Return the line index for the managed block.
 
-    That is the Roman marker's line, or else the allow map's closing brace.
+    That is the line holding the Roman marker, or else the first line that is
+    a lone ``}``.
 
     Raises
     ------
     AcronymAllowlistError
-        If neither the marker nor a closing brace is present.
+        If neither the marker nor a lone ``}`` line is present.
     """
     for idx, line in enumerate(lines):
         if line.strip() == ROMAN_MARKER:
